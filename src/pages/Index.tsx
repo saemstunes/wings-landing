@@ -1,6 +1,7 @@
-import { useEffect, useState, useContext, createContext } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase, Product, submitContactForm, requestQuote, ContactSubmission } from '@/lib/supabase';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Search,
   Package,
@@ -55,45 +56,24 @@ import {
   Navigation
 } from 'lucide-react';
 
-// ==================== SUPABASE CLIENT ====================
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 // ==================== TYPES & INTERFACES ====================
-interface SparePart {
-  id: string;
-  name: string;
-  brand: string;
+// SparePart extends Product with additional fields for parts-specific data
+interface SparePart extends Omit<Product, 'model' | 'subcategory' | 'compatible_with' | 'dimensions'> {
   model: string;
-  category: string;
   subcategory: string;
   part_number?: string;
   oem_equivalent?: string[];
   compatibility?: string[];
   material?: string;
-  dimensions?: string;
-  weight_kg?: number;
-  condition: 'New/OEM' | 'Genuine' | 'Aftermarket' | 'Refurbished';
-  stock_quantity: number;
+  dimensions?: string | null;
+  condition?: 'New/OEM' | 'Genuine' | 'Aftermarket' | 'Refurbished';
   lead_time_days?: number;
   minimum_order_quantity?: number;
-  short_description?: string;
-  full_description?: string;
-  key_features?: string[];
   installation_notes?: string;
   warranty_months?: number;
-  price?: number;
-  currency: string;
   bulk_pricing?: Record<string, number>;
-  primary_image_url?: string;
-  additional_images?: string[];
   technical_drawing_url?: string;
   installation_guide_url?: string;
-  status: 'active' | 'discontinued' | 'out_of_stock';
-  created_at: string;
-  updated_at: string;
 }
 
 interface QuoteItem {
@@ -122,19 +102,8 @@ interface ContactFormData {
   request_metadata?: Record<string, any>;
 }
 
-// ==================== CONTEXT & PROVIDERS ====================
-interface LanguageContextType {
-  language: 'en' | 'sw';
-  toggleLanguage: () => void;
-  t: (key: string, params?: Record<string, string>) => string;
-}
-
-const LanguageContext = createContext<LanguageContextType>({
-  language: 'en',
-  toggleLanguage: () => {},
-  t: () => ''
-});
-
+// ==================== TRANSLATIONS ====================
+// Page-specific translations (more comprehensive than base LanguageContext)
 const translations = {
   en: {
     nav: {
@@ -242,6 +211,10 @@ const translations = {
       noResults: 'No parts found',
       tryAdjusting: 'Try adjusting your filters or search terms',
       clearFilters: 'Clear all filters'
+    },
+    common: {
+      parts: 'parts',
+      days: 'days'
     },
     bulk: {
       title: 'Bulk Orders & Fleet Accounts',
@@ -509,6 +482,10 @@ const translations = {
       tryAdjusting: 'Jaribu kurekebisha vichujio vyako au maneno ya utafutaji',
       clearFilters: 'Futa vichujio vyote'
     },
+    common: {
+      parts: 'vipuri',
+      days: 'siku'
+    },
     bulk: {
       title: 'Maagizo Makubwa na Akaunti za Meli',
       subtitle: 'Ada ya wingi kwa maagizo ya vipuri 10+',
@@ -670,40 +647,6 @@ const translations = {
   }
 };
 
-const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
-  const [language, setLanguage] = useState<'en' | 'sw'>('en');
-
-  const toggleLanguage = () => {
-    setLanguage(prev => prev === 'en' ? 'sw' : 'en');
-  };
-
-  const t = (key: string, params?: Record<string, string>) => {
-    const keys = key.split('.');
-    let value: any = translations[language];
-    
-    for (const k of keys) {
-      if (value && typeof value === 'object' && k in value) {
-        value = value[k];
-      } else {
-        value = undefined;
-        break;
-      }
-    }
-
-    if (typeof value === 'string' && params) {
-      return value.replace(/\{(\w+)\}/g, (_, param) => params[param] || '');
-    }
-
-    return value || key;
-  };
-
-  return (
-    <LanguageContext.Provider value={{ language, toggleLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
-  );
-};
-
 // ==================== MAIN COMPONENT ====================
 const Index = () => {
   const [parts, setParts] = useState<SparePart[]>([]);
@@ -745,7 +688,30 @@ const Index = () => {
     quantity: 1
   });
 
-  const { language, toggleLanguage, t } = useContext(LanguageContext);
+  // Use LanguageContext from contexts, but keep local translations for this page
+  const { language, setLanguage } = useLanguage();
+  const toggleLanguage = () => setLanguage(language === 'en' ? 'sw' : 'en');
+  
+  // Local translation function for this page's comprehensive translations
+  const t = (key: string, params?: Record<string, string>) => {
+    const keys = key.split('.');
+    let value: any = translations[language];
+    
+    for (const k of keys) {
+      if (value && typeof value === 'object' && k in value) {
+        value = value[k];
+      } else {
+        value = undefined;
+        break;
+      }
+    }
+
+    if (typeof value === 'string' && params) {
+      return value.replace(/\{(\w+)\}/g, (_, param) => params[param] || '');
+    }
+
+    return value || key;
+  };
 
   // Dark mode effect
   useEffect(() => {
@@ -783,8 +749,16 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        setParts(data);
-        setFilteredParts(data);
+        // Map Product to SparePart format
+        const spareParts: SparePart[] = data.map((product: Product) => ({
+          ...product,
+          model: product.model || '',
+          subcategory: product.subcategory || '',
+          compatibility: product.compatible_with || [],
+          part_number: product.model || undefined,
+        }));
+        setParts(spareParts);
+        setFilteredParts(spareParts);
       }
     } catch (error) {
       console.error('Error fetching parts:', error);
@@ -924,12 +898,20 @@ const Index = () => {
         .select('*')
         .in('category', ['parts', 'spare_parts'])
         .eq('status', 'active')
-        .contains('compatibility', [compatibilityData.model]);
+        .contains('compatible_with', [compatibilityData.model]);
 
       if (error) throw error;
 
       if (data) {
-        setCompatibleParts(data);
+        // Map Product to SparePart format
+        const compatibleSpareParts: SparePart[] = data.map((product: Product) => ({
+          ...product,
+          model: product.model || '',
+          subcategory: product.subcategory || '',
+          compatibility: product.compatible_with || [],
+          part_number: product.model || undefined,
+        }));
+        setCompatibleParts(compatibleSpareParts);
         setShowCompatibilityResults(true);
       }
     } catch (error) {
@@ -942,41 +924,34 @@ const Index = () => {
     e.preventDefault();
     
     try {
-      const submission = {
-        ...contactForm,
-        submission_date: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        request_metadata: {
-          quote_items: quoteParts,
-          urgency: 'standard'
-        }
+      // Use the helper function from supabase.ts
+      const submissionData = {
+        name: contactForm.name,
+        email: contactForm.email,
+        phone: contactForm.phone,
+        company: contactForm.company,
+        subject: contactForm.subject,
+        message: contactForm.message,
+        request_type: contactForm.request_type,
+        product_name: contactForm.product_name || undefined,
       };
 
-      const { data, error } = await supabase
-        .from('contact_submissions')
-        .insert([submission])
-        .select();
-
-      if (error) throw error;
+      const contactData = await submitContactForm(submissionData);
 
       // Create quote if there are items
-      if (quoteParts.length > 0 && data && data.length > 0) {
+      if (quoteParts.length > 0 && contactData && contactData.length > 0) {
         const quoteNumber = `Q-${new Date().getFullYear()}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`;
         
         const quoteData = {
-          contact_submission_id: data[0].id,
+          contact_submission_id: contactData[0].id,
           quote_number: quoteNumber,
           amount: quoteParts.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
           status: 'pending',
           valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           notes: contactForm.message,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
         };
 
-        await supabase
-          .from('quotes')
-          .insert([quoteData]);
+        await requestQuote(quoteData);
       }
 
       // Reset form
@@ -1043,8 +1018,7 @@ const Index = () => {
   };
 
   return (
-    <LanguageProvider>
-      <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}>
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}>
         {/* ==================== NAVIGATION ==================== */}
         <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2735,7 +2709,6 @@ const Index = () => {
           )}
         </AnimatePresence>
       </div>
-    </LanguageProvider>
   );
 };
 
