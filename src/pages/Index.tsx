@@ -1893,12 +1893,15 @@ const Index = () => {
                     {t('bulk.subtitle')}
                   </p>
                   <ul className="space-y-3 mb-8">
-                    {((t('bulk.features') as unknown) as string[]).map((feature, index) => (
-                      <li key={index} className="flex items-start space-x-3">
-                        <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-200">{feature}</span>
-                      </li>
-                    ))}
+                    {(() => {
+                      const features = t('bulk.features') as any;
+                      return Array.isArray(features) ? (features as string[]).map((feature: string, index: number) => (
+                        <li key={index} className="flex items-start space-x-3">
+                          <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-gray-200">{feature}</span>
+                        </li>
+                      )) : [];
+                    })()}
                   </ul>
                   <button
                     onClick={() => setShowQuoteModal(true)}
@@ -1920,12 +1923,15 @@ const Index = () => {
                     {t('bulk.servicesSubtitle')}
                   </p>
                   <ul className="space-y-3 mb-8">
-                    {((t('bulk.servicesFeatures') as unknown) as string[]).map((feature, index) => (
-                      <li key={index} className="flex items-start space-x-3">
-                        <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-200">{feature}</span>
-                      </li>
-                    ))}
+                    {(() => {
+                      const features = t('bulk.servicesFeatures') as any;
+                      return Array.isArray(features) ? (features as string[]).map((feature: string, index: number) => (
+                        <li key={index} className="flex items-start space-x-3">
+                          <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-gray-200">{feature}</span>
+                        </li>
+                      )) : [];
+                    })()}
                   </ul>
                   <a
                     href="https://wa.me/254718234222"
@@ -1950,11 +1956,13 @@ const Index = () => {
             </h2>
             
             <div className="flex overflow-x-auto space-x-6 pb-6 scrollbar-hide">
-              {((t('testimonials.testimonials') as unknown) as Array<{quote: string; author: string; role: string; rating: number}>).map((testimonial, index) => (
-                <div
-                  key={index}
-                  className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg min-w-[300px] lg:min-w-[400px] flex-shrink-0"
-                >
+              {(() => {
+                const testimonials = t('testimonials.testimonials') as any;
+                return Array.isArray(testimonials) ? (testimonials as Array<{quote: string; author: string; role: string; rating: number}>).map((testimonial: {quote: string; author: string; role: string; rating: number}, index: number) => (
+                  <div
+                    key={index}
+                    className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg min-w-[300px] lg:min-w-[400px] flex-shrink-0"
+                  >
                   {/* Rating */}
                   <div className="flex gap-1 mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
@@ -1985,7 +1993,8 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                )) : [];
+              })()}
             </div>
           </div>
         </section>
@@ -2334,32 +2343,35 @@ const Index = () => {
             </h2>
             
             <div className="max-w-3xl mx-auto space-y-4">
-              {((t('faq.questions') as unknown) as Array<{q: string; a: string}>).map((faq, index) => (
-                <div
-                  key={index}
-                  className="backdrop-blur-xl bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100"
-                >
-                  <button
-                    onClick={() => setActiveFAQ(activeFAQ === index ? null : index)}
-                    className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+              {(() => {
+                const questions = t('faq.questions') as any;
+                return Array.isArray(questions) ? (questions as Array<{q: string; a: string}>).map((faq: {q: string; a: string}, index: number) => (
+                  <div
+                    key={index}
+                    className="backdrop-blur-xl bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100"
                   >
-                    <span className="font-semibold text-gray-900 pr-4">
-                      {faq.q}
-                    </span>
-                    <ChevronDown
-                      size={24}
-                      className={`text-gray-400 transition-transform ${
-                        activeFAQ === index ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-                  {activeFAQ === index && (
-                    <div className="px-6 pb-5 text-gray-600 leading-relaxed">
-                      {faq.a}
-                    </div>
-                  )}
-                </div>
-              ))}
+                    <button
+                      onClick={() => setActiveFAQ(activeFAQ === index ? null : index)}
+                      className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="font-semibold text-gray-900 pr-4">
+                        {faq.q}
+                      </span>
+                      <ChevronDown
+                        size={24}
+                        className={`text-gray-400 transition-transform ${
+                          activeFAQ === index ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                    {activeFAQ === index && (
+                      <div className="px-6 pb-5 text-gray-600 leading-relaxed">
+                        {faq.a}
+                      </div>
+                    )}
+                  </div>
+                )) : [];
+              })()}
             </div>
           </div>
         </section>
@@ -2403,16 +2415,19 @@ const Index = () => {
               <div>
                 <h4 className="font-semibold mb-4">{t('footer.shop')}</h4>
                 <ul className="space-y-2 text-gray-400">
-                  {((t('footer.categories') as unknown) as string[]).map((category, index) => (
-                    <li key={index}>
-                      <a
-                        href="#"
-                        className="hover:text-white transition-colors"
-                      >
-                        {category}
-                      </a>
-                    </li>
-                  ))}
+                  {(() => {
+                    const categories = t('footer.categories') as any;
+                    return Array.isArray(categories) ? (categories as string[]).map((category: string, index: number) => (
+                      <li key={index}>
+                        <a
+                          href="#"
+                          className="hover:text-white transition-colors"
+                        >
+                          {category}
+                        </a>
+                      </li>
+                    )) : [];
+                  })()}
                 </ul>
               </div>
               
@@ -2420,16 +2435,19 @@ const Index = () => {
               <div>
                 <h4 className="font-semibold mb-4">{t('footer.company')}</h4>
                 <ul className="space-y-2 text-gray-400">
-                  {((t('footer.companyLinks') as unknown) as string[]).map((link, index) => (
-                    <li key={index}>
-                      <a
-                        href="#"
-                        className="hover:text-white transition-colors"
-                      >
-                        {link}
-                      </a>
-                    </li>
-                  ))}
+                  {(() => {
+                    const companyLinks = t('footer.companyLinks') as any;
+                    return Array.isArray(companyLinks) ? (companyLinks as string[]).map((link: string, index: number) => (
+                      <li key={index}>
+                        <a
+                          href="#"
+                          className="hover:text-white transition-colors"
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    )) : [];
+                  })()}
                 </ul>
               </div>
               
@@ -2437,29 +2455,35 @@ const Index = () => {
               <div>
                 <h4 className="font-semibold mb-4">{t('footer.support')}</h4>
                 <ul className="space-y-2 text-gray-400 mb-6">
-                  {((t('footer.supportLinks') as unknown) as string[]).map((link, index) => (
-                    <li key={index}>
-                      <a
-                        href="#"
-                        className="hover:text-white transition-colors"
-                      >
-                        {link}
-                      </a>
-                    </li>
-                  ))}
+                  {(() => {
+                    const supportLinks = t('footer.supportLinks') as any;
+                    return Array.isArray(supportLinks) ? (supportLinks as string[]).map((link: string, index: number) => (
+                      <li key={index}>
+                        <a
+                          href="#"
+                          className="hover:text-white transition-colors"
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    )) : [];
+                  })()}
                 </ul>
                 <h4 className="font-semibold mb-4 mt-8">{t('footer.legal')}</h4>
                 <ul className="space-y-2 text-gray-400">
-                  {((t('footer.legalLinks') as unknown) as string[]).map((link, index) => (
-                    <li key={index}>
-                      <a
-                        href="#"
-                        className="hover:text-white transition-colors"
-                      >
-                        {link}
-                      </a>
-                    </li>
-                  ))}
+                  {(() => {
+                    const legalLinks = t('footer.legalLinks') as any;
+                    return Array.isArray(legalLinks) ? (legalLinks as string[]).map((link: string, index: number) => (
+                      <li key={index}>
+                        <a
+                          href="#"
+                          className="hover:text-white transition-colors"
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    )) : [];
+                  })()}
                 </ul>
               </div>
             </div>
