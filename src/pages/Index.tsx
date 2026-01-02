@@ -48,7 +48,11 @@ import {
   Award as AwardIcon,
   Droplet,
   Wind,
-  Link
+  Link,
+  Moon,
+  Sun,
+  ArrowUp,
+  Navigation
 } from 'lucide-react';
 
 // ==================== SUPABASE CLIENT ====================
@@ -724,6 +728,9 @@ const Index = () => {
   const [showCompatibilityResults, setShowCompatibilityResults] = useState(false);
   const [compatibleParts, setCompatibleParts] = useState<SparePart[]>([]);
   const [activeFAQ, setActiveFAQ] = useState<number | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showQuickNav, setShowQuickNav] = useState(false);
   const [contactForm, setContactForm] = useState<ContactFormData>({
     name: '',
     email: '',
@@ -739,6 +746,24 @@ const Index = () => {
   });
 
   const { language, toggleLanguage, t } = useContext(LanguageContext);
+
+  // Dark mode effect
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  // Scroll detection for back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // ==================== DATA FETCHING ====================
   useEffect(() => {
@@ -1005,48 +1030,69 @@ const Index = () => {
     return { status: 'outOfStock', text: t('featured.outOfStock'), color: 'bg-red-500' };
   };
 
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setShowQuickNav(false);
+    }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <LanguageProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+      <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}>
         {/* ==================== NAVIGATION ==================== */}
-        <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-200/50">
+        <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Logo */}
               <div className="flex items-center">
                 <div className="flex items-center space-x-2">
-                  <Cog className="w-8 h-8 text-blue-600" />
-                  <span className="text-xl font-semibold text-gray-900">Wings Engineering</span>
+                  <Cog className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xl font-semibold text-gray-900 dark:text-white">Wings Engineering</span>
                 </div>
               </div>
 
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center space-x-8">
-                <a href="#parts" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                <a href="#parts" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                   {t('nav.parts')}
                 </a>
-                <a href="#compatibility" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                <a href="#compatibility" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                   {t('nav.engine')}
                 </a>
-                <a href="#services" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                <a href="#services" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                   {t('nav.services')}
                 </a>
-                <a href="#contact" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                <a href="#contact" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                   {t('nav.contact')}
                 </a>
                 
                 {/* Search Icon */}
                 <button
                   onClick={() => setShowSearchModal(true)}
-                  className="p-2 text-gray-600 hover:text-blue-600"
+                  className="p-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   <Search size={20} />
+                </button>
+
+                {/* Dark Mode Toggle */}
+                <button
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="p-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                  aria-label="Toggle dark mode"
+                >
+                  {darkMode ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
 
                 {/* Language Toggle */}
                 <button
                   onClick={toggleLanguage}
-                  className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-blue-600"
+                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   <Globe size={16} />
                   <span>{language === 'en' ? 'EN' : 'SW'}</span>
@@ -1107,25 +1153,32 @@ const Index = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="md:hidden backdrop-blur-xl bg-white/95 border-t border-gray-200"
+                className="md:hidden backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-700"
               >
                 <div className="px-4 py-4 space-y-4">
-                  <a href="#parts" className="block text-gray-600 hover:text-blue-600 py-2">
+                  <a href="#parts" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 py-2">
                     {t('nav.parts')}
                   </a>
-                  <a href="#compatibility" className="block text-gray-600 hover:text-blue-600 py-2">
+                  <a href="#compatibility" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 py-2">
                     {t('nav.engine')}
                   </a>
-                  <a href="#services" className="block text-gray-600 hover:text-blue-600 py-2">
+                  <a href="#services" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 py-2">
                     {t('nav.services')}
                   </a>
-                  <a href="#contact" className="block text-gray-600 hover:text-blue-600 py-2">
+                  <a href="#contact" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 py-2">
                     {t('nav.contact')}
                   </a>
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => setDarkMode(!darkMode)}
+                      className="p-2 text-gray-700 dark:text-gray-300"
+                      aria-label="Toggle dark mode"
+                    >
+                      {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
                     <button
                       onClick={toggleLanguage}
-                      className="flex items-center space-x-2 text-gray-600"
+                      className="flex items-center space-x-2 text-gray-700 dark:text-gray-300"
                     >
                       <Globe size={16} />
                       <span>{language === 'en' ? 'English' : 'Kiswahili'}</span>
@@ -1153,7 +1206,7 @@ const Index = () => {
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 leading-tight"
+                className="text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 dark:text-white leading-tight"
               >
                 {t('hero.title')}
               </motion.h1>
@@ -1162,7 +1215,7 @@ const Index = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="text-lg lg:text-xl font-normal text-gray-600 max-w-2xl mx-auto mt-6"
+                className="text-lg lg:text-xl font-normal text-gray-700 dark:text-gray-300 max-w-2xl mx-auto mt-6"
               >
                 {t('hero.subtitle')}
               </motion.p>
@@ -1189,7 +1242,7 @@ const Index = () => {
                     {t('hero.searchButton')}
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mt-3 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 text-center">
                   {t('hero.popular')}
                 </p>
               </motion.div>
@@ -1255,7 +1308,7 @@ const Index = () => {
         {/* ==================== TRUST BADGES ==================== */}
         <section className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-semibold text-gray-900 text-center mb-12">
+            <h2 className="text-3xl font-semibold text-gray-900 dark:text-white text-center mb-12">
               {t('trust.title')}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
@@ -1281,10 +1334,10 @@ const Index = () => {
         {/* ==================== CATEGORIES ==================== */}
         <section id="parts" className="py-20 lg:py-32">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 text-center mb-4">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white text-center mb-4">
               {t('categories.title')}
             </h2>
-            <p className="text-lg text-gray-600 text-center mb-12">
+            <p className="text-lg text-gray-700 dark:text-gray-300 text-center mb-12">
               {t('categories.subtitle')}
             </p>
             
@@ -1318,12 +1371,12 @@ const Index = () => {
         </section>
 
         {/* ==================== FEATURED PARTS ==================== */}
-        <section className="py-20 bg-gray-50">
+        <section className="py-20 bg-gray-50 dark:bg-gray-800/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 text-center mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-4">
               {t('featured.title')}
             </h2>
-            <p className="text-lg text-gray-600 text-center mb-12">
+            <p className="text-lg text-gray-700 dark:text-gray-300 text-center mb-12">
               {t('featured.subtitle')}
             </p>
 
@@ -1345,7 +1398,7 @@ const Index = () => {
                     <motion.div
                       key={part.id}
                       whileHover={{ scale: 1.02 }}
-                      className="backdrop-blur-xl bg-white/80 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                      className="backdrop-blur-xl bg-white/80 dark:bg-gray-800/80 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer"
                     >
                       {/* Image Container */}
                       <div className="relative h-64 bg-gray-100 overflow-hidden">
@@ -1380,12 +1433,12 @@ const Index = () => {
                         </p>
                         
                         {/* Part Name */}
-                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">
                           {part.name}
                         </h3>
                         
                         {/* Part Number */}
-                        <p className="text-sm text-gray-500 mb-3">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                           Part#: {part.model || part.part_number || t('featured.contactForPrice')}
                         </p>
                         
@@ -1408,17 +1461,17 @@ const Index = () => {
                           <div>
                             {part.price ? (
                               <>
-                                <p className="text-2xl font-bold text-gray-900">
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                                   KES {part.price.toLocaleString()}
                                 </p>
                                 {part.bulk_pricing && (
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
                                     {t('featured.bulkDiscounts')}
                                   </p>
                                 )}
                               </>
                             ) : (
-                              <p className="text-sm font-medium text-gray-700">
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                 {t('featured.contactForPrice')}
                               </p>
                             )}
@@ -1457,26 +1510,26 @@ const Index = () => {
         </section>
 
         {/* ==================== COMPATIBILITY CHECKER ==================== */}
-        <section id="compatibility" className="py-24 bg-gradient-to-br from-blue-50 to-white">
+        <section id="compatibility" className="py-24 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 text-center mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-4">
               {t('compatibility.title')}
             </h2>
-            <p className="text-lg text-gray-600 text-center mb-12">
+            <p className="text-lg text-gray-700 dark:text-gray-300 text-center mb-12">
               {t('compatibility.subtitle')}
             </p>
 
-            <div className="max-w-3xl mx-auto backdrop-blur-xl bg-white/90 rounded-3xl shadow-2xl p-8 lg:p-12">
+            <div className="max-w-3xl mx-auto backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 rounded-3xl shadow-2xl p-8 lg:p-12">
               <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); checkCompatibility(); }}>
                 {/* Engine Brand */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     {t('compatibility.brand')}
                   </label>
                   <select
                     value={compatibilityData.brand}
                     onChange={(e) => setCompatibilityData(prev => ({ ...prev, brand: e.target.value }))}
-                    className="w-full px-4 py-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                    className="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   >
                     <option value="">{t('compatibility.selectBrand')}</option>
                     <option value="Lister Petter">Lister Petter</option>
@@ -1591,9 +1644,9 @@ const Index = () => {
         </section>
 
         {/* ==================== WHY CHOOSE US ==================== */}
-        <section className="py-20 lg:py-32 bg-white">
+        <section className="py-20 lg:py-32 bg-white dark:bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-16">
               {t('whyChoose.title')}
             </h2>
             
@@ -1626,17 +1679,17 @@ const Index = () => {
               ].map((feature, index) => (
                 <div
                   key={index}
-                  className="backdrop-blur-md bg-gradient-to-br from-white to-gray-50/50 rounded-3xl p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100"
+                  className="backdrop-blur-md bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-700/50 rounded-3xl p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100 dark:border-gray-700"
                 >
                   <feature.icon className={`w-16 h-16 ${feature.color} mb-6`} />
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                     {feature.title}
                   </h3>
                   <ul className="space-y-2">
                     {feature.features.map((item, i) => (
                       <li key={i} className="flex items-start space-x-2">
-                        <CheckCircle className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
-                        <span className="text-sm text-gray-600">{item}</span>
+                        <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 mt-1 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -1647,14 +1700,14 @@ const Index = () => {
         </section>
 
         {/* ==================== FULL CATALOG ==================== */}
-        <section id="catalog" className="py-20 bg-gray-50">
+        <section id="catalog" className="py-20 bg-gray-50 dark:bg-gray-800/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 mb-8">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">
               {t('catalog.title')}
             </h2>
             
             {/* Filter Bar */}
-            <div className="sticky top-16 z-40 backdrop-blur-xl bg-white/90 border-y border-gray-200 px-4 py-4 mb-8">
+            <div className="sticky top-16 z-40 backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 border-y border-gray-200 dark:border-gray-700 px-4 py-4 mb-8">
               <div className="max-w-7xl mx-auto flex flex-wrap gap-4 items-center">
                 {/* Search */}
                 <div className="flex-1 min-w-[200px]">
@@ -1663,7 +1716,7 @@ const Index = () => {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder={t('catalog.searchPlaceholder')}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
                 
@@ -1671,7 +1724,7 @@ const Index = () => {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="all">{t('catalog.allCategories')}</option>
                   {categories.map((cat) => (
@@ -1740,10 +1793,10 @@ const Index = () => {
                     return (
                       <div
                         key={part.id}
-                        className="backdrop-blur-md bg-white/90 rounded-2xl shadow-md hover:shadow-xl transition-shadow overflow-hidden"
-                      >
-                        {/* Image */}
-                        <div className="relative h-48 bg-gray-100">
+                      className="backdrop-blur-md bg-white/90 dark:bg-gray-800/90 rounded-2xl shadow-md hover:shadow-xl transition-shadow overflow-hidden"
+                    >
+                      {/* Image */}
+                      <div className="relative h-48 bg-gray-100 dark:bg-gray-700">
                           {part.primary_image_url ? (
                             <img
                               src={part.primary_image_url}
@@ -1762,24 +1815,24 @@ const Index = () => {
                         
                         {/* Content */}
                         <div className="p-4">
-                          <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+                          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
                             {part.brand}
                           </p>
-                          <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">
+                          <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">
                             {part.name}
                           </h3>
-                          <p className="text-sm text-gray-500 mb-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                             {part.model || part.part_number}
                           </p>
                           
                           <div className="flex items-center justify-between">
                             <div>
                               {part.price ? (
-                                <p className="text-lg font-bold text-gray-900">
+                                <p className="text-lg font-bold text-gray-900 dark:text-white">
                                   KES {part.price.toLocaleString()}
                                 </p>
                               ) : (
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
                                   {t('featured.contactForPrice')}
                                 </p>
                               )}
@@ -1879,7 +1932,7 @@ const Index = () => {
         </section>
 
         {/* ==================== BULK ORDERS & SERVICES ==================== */}
-        <section id="services" className="py-20 bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+        <section id="services" className="py-20 bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-950 dark:to-gray-900 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Bulk Orders */}
@@ -1949,9 +2002,9 @@ const Index = () => {
         </section>
 
         {/* ==================== TESTIMONIALS ==================== */}
-        <section className="py-20 bg-gray-50">
+        <section className="py-20 bg-gray-50 dark:bg-gray-800/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-12">
               {t('testimonials.title')}
             </h2>
             
@@ -1961,8 +2014,8 @@ const Index = () => {
                 return Array.isArray(testimonials) ? (testimonials as Array<{quote: string; author: string; role: string; rating: number}>).map((testimonial: {quote: string; author: string; role: string; rating: number}, index: number) => (
                   <div
                     key={index}
-                    className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg min-w-[300px] lg:min-w-[400px] flex-shrink-0"
-                  >
+                  className="backdrop-blur-xl bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg min-w-[300px] lg:min-w-[400px] flex-shrink-0"
+                >
                   {/* Rating */}
                   <div className="flex gap-1 mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
@@ -1974,20 +2027,20 @@ const Index = () => {
                   </div>
                   
                   {/* Quote */}
-                  <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                  <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed mb-6">
                     "{testimonial.quote}"
                   </p>
                   
                   {/* Author */}
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xl">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xl">
                       {testimonial.author.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {testimonial.author}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         {testimonial.role}
                       </p>
                     </div>
@@ -2023,16 +2076,16 @@ const Index = () => {
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                  className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                 >
                   <div className="p-8">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8">
                       <div>
-                        <h2 className="text-3xl font-bold text-gray-900">
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
                           {t('quote.title')}
                         </h2>
-                        <p className="text-gray-600 mt-2">
+                        <p className="text-gray-700 dark:text-gray-300 mt-2">
                           {t('quote.subtitle')}
                         </p>
                       </div>
@@ -2045,14 +2098,14 @@ const Index = () => {
                     </div>
                     
                     {/* Quote Items */}
-                    <div className="backdrop-blur-xl bg-white/90 rounded-3xl shadow-2xl p-8 mb-8">
-                      <h3 className="text-xl font-bold text-gray-900 mb-6">
+                    <div className="backdrop-blur-xl bg-white/90 dark:bg-gray-700/90 rounded-3xl shadow-2xl p-8 mb-8">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
                         {t('quote.partsInQuote')}
                       </h3>
                       
                       {quoteParts.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                          <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <div className="text-center py-12 text-gray-600 dark:text-gray-400">
+                          <Package className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
                           <p>{t('quote.noPartsAdded')}</p>
                         </div>
                       ) : (
@@ -2138,15 +2191,15 @@ const Index = () => {
                     </div>
                     
                     {/* Quote Form */}
-                    <div className="backdrop-blur-xl bg-white/90 rounded-3xl shadow-2xl p-8">
-                      <h3 className="text-xl font-bold text-gray-900 mb-6">
+                    <div className="backdrop-blur-xl bg-white/90 dark:bg-gray-700/90 rounded-3xl shadow-2xl p-8">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
                         {t('quote.yourInfo')}
                       </h3>
                       
                       <form onSubmit={handleContactSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Name */}
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             {t('quote.fullName')}
                           </label>
                           <input
@@ -2154,13 +2207,13 @@ const Index = () => {
                             required
                             value={contactForm.name}
                             onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                           />
                         </div>
                         
                         {/* Email */}
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             {t('quote.email')}
                           </label>
                           <input
@@ -2168,13 +2221,13 @@ const Index = () => {
                             required
                             value={contactForm.email}
                             onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                           />
                         </div>
                         
                         {/* Phone */}
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             {t('quote.phone')}
                           </label>
                           <input
@@ -2183,26 +2236,26 @@ const Index = () => {
                             value={contactForm.phone}
                             onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
                             placeholder={t('quote.phonePlaceholder')}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                           />
                         </div>
                         
                         {/* Company */}
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             {t('quote.company')}
                           </label>
                           <input
                             type="text"
                             value={contactForm.company}
                             onChange={(e) => setContactForm(prev => ({ ...prev, company: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                           />
                         </div>
                         
                         {/* Delivery Location */}
                         <div className="lg:col-span-2">
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             {t('quote.delivery')}
                           </label>
                           <input
@@ -2211,13 +2264,13 @@ const Index = () => {
                             value={contactForm.subject}
                             onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                             placeholder={t('quote.deliveryPlaceholder')}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                           />
                         </div>
                         
                         {/* Additional Notes */}
                         <div className="lg:col-span-2">
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                             {t('quote.notes')}
                           </label>
                           <textarea
@@ -2225,7 +2278,7 @@ const Index = () => {
                             value={contactForm.message}
                             onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
                             placeholder={t('quote.notesPlaceholder')}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
                           />
                         </div>
                         
@@ -2237,7 +2290,7 @@ const Index = () => {
                           >
                             {t('quote.submit')}
                           </button>
-                          <p className="text-sm text-gray-500 text-center mt-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-3">
                             {t('quote.responseTime')}
                           </p>
                         </div>
@@ -2251,22 +2304,22 @@ const Index = () => {
         </AnimatePresence>
 
         {/* ==================== CONTACT & SUPPORT ==================== */}
-        <section id="contact" className="py-20 lg:py-32 bg-gradient-to-br from-blue-50 to-white">
+        <section id="contact" className="py-20 lg:py-32 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-12">
               {t('contact.title')}
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               {/* WhatsApp */}
-              <div className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg text-center">
+              <div className="backdrop-blur-xl bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg text-center">
                 <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <MessageCircle size={32} className="text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                   {t('contact.whatsapp.title')}
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-6">
                   {t('contact.whatsapp.desc')}
                 </p>
                 <a
@@ -2281,14 +2334,14 @@ const Index = () => {
               </div>
               
               {/* Phone */}
-              <div className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg text-center">
+              <div className="backdrop-blur-xl bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg text-center">
                 <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Phone size={32} className="text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                   {t('contact.phone.title')}
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-6">
                   {t('contact.phone.desc')}
                 </p>
                 <a
@@ -2303,14 +2356,14 @@ const Index = () => {
               </div>
               
               {/* Email */}
-              <div className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg text-center">
+              <div className="backdrop-blur-xl bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg text-center">
                 <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Mail size={32} className="text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                   {t('contact.email.title')}
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-6">
                   {t('contact.email.desc')}
                 </p>
                 <a
@@ -2324,11 +2377,11 @@ const Index = () => {
             
             {/* Location & Service Areas */}
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 text-gray-600 mb-2">
+              <div className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-300 mb-2">
                 <MapPin size={16} />
                 <span>{t('contact.address')}</span>
               </div>
-              <p className="text-gray-600">
+              <p className="text-gray-700 dark:text-gray-300">
                 {t('contact.serviceAreas')}
               </p>
             </div>
@@ -2336,9 +2389,9 @@ const Index = () => {
         </section>
 
         {/* ==================== FAQ ==================== */}
-        <section className="py-20 bg-white">
+        <section className="py-20 bg-white dark:bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-bold text-gray-900 text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-12">
               {t('faq.title')}
             </h2>
             
@@ -2348,24 +2401,24 @@ const Index = () => {
                 return Array.isArray(questions) ? (questions as Array<{q: string; a: string}>).map((faq: {q: string; a: string}, index: number) => (
                   <div
                     key={index}
-                    className="backdrop-blur-xl bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100"
+                    className="backdrop-blur-xl bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700"
                   >
                     <button
                       onClick={() => setActiveFAQ(activeFAQ === index ? null : index)}
-                      className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                      className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <span className="font-semibold text-gray-900 pr-4">
+                      <span className="font-semibold text-gray-900 dark:text-white pr-4">
                         {faq.q}
                       </span>
                       <ChevronDown
                         size={24}
-                        className={`text-gray-400 transition-transform ${
+                        className={`text-gray-400 dark:text-gray-500 transition-transform ${
                           activeFAQ === index ? 'rotate-180' : ''
                         }`}
                       />
                     </button>
                     {activeFAQ === index && (
-                      <div className="px-6 pb-5 text-gray-600 leading-relaxed">
+                      <div className="px-6 pb-5 text-gray-700 dark:text-gray-300 leading-relaxed">
                         {faq.a}
                       </div>
                     )}
@@ -2377,7 +2430,7 @@ const Index = () => {
         </section>
 
         {/* ==================== FOOTER ==================== */}
-        <footer className="bg-gray-900 text-white py-16">
+        <footer className="bg-gray-900 dark:bg-gray-950 text-white py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
               {/* Company Info */}
@@ -2516,12 +2569,76 @@ const Index = () => {
           </div>
         </footer>
 
+        {/* ==================== MOBILE QUICK NAVIGATION ==================== */}
+        {showQuickNav && (
+          <div className="fixed bottom-20 left-4 right-4 md:hidden z-40">
+            <div className="backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 rounded-2xl shadow-2xl p-4 border border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => scrollToSection('parts')}
+                  className="p-3 text-left bg-blue-50 dark:bg-blue-900/30 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                >
+                  <Package size={20} className="text-blue-600 dark:text-blue-400 mb-1" />
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white">{t('nav.parts')}</p>
+                </button>
+                <button
+                  onClick={() => scrollToSection('compatibility')}
+                  className="p-3 text-left bg-purple-50 dark:bg-purple-900/30 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+                >
+                  <Cog size={20} className="text-purple-600 dark:text-purple-400 mb-1" />
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white">{t('nav.engine')}</p>
+                </button>
+                <button
+                  onClick={() => scrollToSection('services')}
+                  className="p-3 text-left bg-orange-50 dark:bg-orange-900/30 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
+                >
+                  <Truck size={20} className="text-orange-600 dark:text-orange-400 mb-1" />
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white">{t('nav.services')}</p>
+                </button>
+                <button
+                  onClick={() => scrollToSection('contact')}
+                  className="p-3 text-left bg-green-50 dark:bg-green-900/30 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+                >
+                  <Phone size={20} className="text-green-600 dark:text-green-400 mb-1" />
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white">{t('nav.contact')}</p>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowQuickNav(false)}
+                className="w-full mt-2 p-2 text-gray-600 dark:text-gray-400 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== QUICK NAV TOGGLE (MOBILE) ==================== */}
+        <button
+          onClick={() => setShowQuickNav(!showQuickNav)}
+          className="fixed bottom-20 right-6 md:hidden bg-blue-600 dark:bg-blue-500 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors z-40"
+          aria-label="Quick navigation"
+        >
+          <Navigation size={24} />
+        </button>
+
+        {/* ==================== BACK TO TOP BUTTON ==================== */}
+        {showBackToTop && (
+          <button
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 md:bottom-24 bg-blue-600 dark:bg-blue-500 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-all z-40 animate-bounce"
+            aria-label="Back to top"
+          >
+            <ArrowUp size={24} />
+          </button>
+        )}
+
         {/* ==================== WHATSAPP BUTTON ==================== */}
         <a
           href="https://wa.me/254718234222"
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 bg-green-500 text-white p-4 rounded-full shadow-2xl hover:bg-green-600 transition-colors z-40 animate-pulse"
+          className="fixed bottom-6 right-6 md:bottom-6 md:right-20 bg-green-500 text-white p-4 rounded-full shadow-2xl hover:bg-green-600 transition-colors z-40 animate-pulse"
         >
           <MessageCircle size={24} />
         </a>
@@ -2550,18 +2667,18 @@ const Index = () => {
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="relative backdrop-blur-xl bg-white/95 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+                  className="relative backdrop-blur-xl bg-white/95 dark:bg-gray-800/95 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
                 >
                   <div className="p-6">
                     <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                       <input
                         type="text"
                         autoFocus
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder={t('hero.searchPlaceholder')}
-                        className="w-full pl-12 pr-4 py-4 text-lg border-0 focus:ring-0 bg-transparent"
+                        className="w-full pl-12 pr-4 py-4 text-lg border-0 focus:ring-0 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       />
                       <button
                         onClick={() => setShowSearchModal(false)}
@@ -2581,7 +2698,7 @@ const Index = () => {
                               addToQuote(part);
                               setShowSearchModal(false);
                             }}
-                            className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 rounded-xl text-left"
+                            className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-left"
                           >
                             {part.primary_image_url ? (
                               <img
@@ -2590,20 +2707,20 @@ const Index = () => {
                                 className="w-12 h-12 object-cover rounded-lg"
                               />
                             ) : (
-                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <Package className="w-6 h-6 text-gray-400" />
+                              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                <Package className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                               </div>
                             )}
                             <div className="flex-1">
-                              <p className="font-medium text-gray-900">
+                              <p className="font-medium text-gray-900 dark:text-white">
                                 {part.name}
                               </p>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
                                 {part.brand} • {part.model || part.part_number}
                               </p>
                             </div>
                             {part.price && (
-                              <span className="font-semibold text-gray-900">
+                              <span className="font-semibold text-gray-900 dark:text-white">
                                 KES {part.price.toLocaleString()}
                               </span>
                             )}
