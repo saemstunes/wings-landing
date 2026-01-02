@@ -1,223 +1,959 @@
-import React, { useState, useEffect, useRef } from 'react'
-import Navigation from '../components/landing/Navigation'
-import Hero from '../components/landing/Hero'
-import Partners from '../components/landing/Partners'
-import About from '../components/landing/About'
-import Services from '../components/landing/Services'
-import Products from '../components/landing/Products'
-import WhyChooseUs from '../components/landing/WhyChooseUs'
-import Portfolio from '../components/landing/Portifolio'
-import Testimonials from '../components/landing/Testimonials'
-import Contact from '../components/landing/Contact'
-import Footer from '../components/landing/Footer'
-import WhatsAppButton from '../components/landing/WhatsAppButton'
-import { useLanguage } from '../contexts/LanguageContext'
-import { supabase, Product, Service, submitContactForm, requestQuote } from '../lib/supabase'
-import { AlertCircle, CheckCircle, Loader2, Download, Phone, Mail, MapPin, Clock, Shield, Package, Users, Zap, Wrench, Settings, Calendar, AlertCircle as AlertCircleIcon, FileText } from 'lucide-react'
-import { Button } from '../components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Textarea } from '../components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
-import { Badge } from '../components/ui/badge'
-import { Separator } from '../components/ui/separator'
-import { Progress } from '../components/ui/progress'
-import { toast } from 'sonner'
+import { useEffect, useState, useContext, createContext } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Search,
+  Package,
+  Filter,
+  CheckCircle,
+  Shield,
+  Truck,
+  MessageCircle,
+  Phone,
+  Mail,
+  ChevronDown,
+  Facebook,
+  Instagram,
+  Linkedin,
+  Instagram as LinkedinIcon,
+  Star,
+  ShoppingCart,
+  X,
+  Menu,
+  Globe,
+  MapPin,
+  Clock,
+  Zap,
+  Wrench,
+  Settings,
+  AlertCircle,
+  FileText,
+  Cog,
+  Home,
+  ShoppingBag,
+  Headphones,
+  Award,
+  Users,
+  HelpCircle,
+  ExternalLink,
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  Trash2,
+  Mail as MailIcon,
+  MessageSquare,
+  Bell,
+  AlertTriangle,
+  Check,
+  Award as AwardIcon,
+  Droplet,
+  Wind,
+  Link
+} from 'lucide-react';
 
+// ==================== SUPABASE CLIENT ====================
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// ==================== TYPES & INTERFACES ====================
+interface SparePart {
+  id: string;
+  name: string;
+  brand: string;
+  model: string;
+  category: string;
+  subcategory: string;
+  part_number?: string;
+  oem_equivalent?: string[];
+  compatibility?: string[];
+  material?: string;
+  dimensions?: string;
+  weight_kg?: number;
+  condition: 'New/OEM' | 'Genuine' | 'Aftermarket' | 'Refurbished';
+  stock_quantity: number;
+  lead_time_days?: number;
+  minimum_order_quantity?: number;
+  short_description?: string;
+  full_description?: string;
+  key_features?: string[];
+  installation_notes?: string;
+  warranty_months?: number;
+  price?: number;
+  currency: string;
+  bulk_pricing?: Record<string, number>;
+  primary_image_url?: string;
+  additional_images?: string[];
+  technical_drawing_url?: string;
+  installation_guide_url?: string;
+  status: 'active' | 'discontinued' | 'out_of_stock';
+  created_at: string;
+  updated_at: string;
+}
+
+interface QuoteItem {
+  id: string;
+  name: string;
+  brand: string;
+  part_number?: string;
+  quantity: number;
+  price?: number;
+  currency: string;
+  primary_image_url?: string;
+}
+
+interface ContactFormData {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  subject: string;
+  message: string;
+  request_type: string;
+  product_name: string;
+  part_number: string;
+  engine_model: string;
+  quantity?: number;
+  request_metadata?: Record<string, any>;
+}
+
+// ==================== CONTEXT & PROVIDERS ====================
+interface LanguageContextType {
+  language: 'en' | 'sw';
+  toggleLanguage: () => void;
+  t: (key: string, params?: Record<string, string>) => string;
+}
+
+const LanguageContext = createContext<LanguageContextType>({
+  language: 'en',
+  toggleLanguage: () => {},
+  t: () => ''
+});
+
+const translations = {
+  en: {
+    nav: {
+      home: 'Home',
+      parts: 'Browse Parts',
+      engine: 'Search by Engine',
+      services: 'Services',
+      contact: 'Contact',
+      quote: 'My Quote'
+    },
+    hero: {
+      title: 'Genuine Spare Parts for Industrial Engines & Generators',
+      subtitle: 'Lister Petter Specialist • OEM Quality • Fast Delivery Across East Africa',
+      searchPlaceholder: 'Search by part name, number, or engine model...',
+      searchButton: 'Search Parts',
+      popular: 'Popular: Oil Filters, Gaskets, Injectors, Piston Rings, Bearings',
+      browseAll: 'Browse All Parts',
+      checkCompatibility: 'Check Compatibility',
+      whatsapp: 'WhatsApp: +254 718 234 222',
+      stats: {
+        partsInStock: '2,500+ Parts in Stock',
+        sameDayDispatch: 'Same Day Dispatch',
+        majorBrands: 'All Major Brands',
+        warranty: '12-Month Warranty'
+      }
+    },
+    trust: {
+      title: 'Trusted by East Africa\'s Leading Industries',
+      subtitle: 'Delivering genuine parts to maintenance teams across the region'
+    },
+    categories: {
+      title: 'Shop by Category',
+      subtitle: 'Find exactly what you need',
+      filters: 'Filters',
+      engineComponents: 'Engine Components',
+      gaskets: 'Gaskets & Seals',
+      fuelSystem: 'Fuel System',
+      cooling: 'Cooling System',
+      electrical: 'Electrical',
+      belts: 'Belts & Hoses',
+      hardware: 'Fasteners & Hardware',
+      viewAll: 'View all in category'
+    },
+    featured: {
+      title: 'Popular Spare Parts',
+      subtitle: 'In stock and ready to ship',
+      viewAll: 'View All 2,500+ Parts',
+      inStock: 'In Stock',
+      lowStock: 'Low Stock',
+      outOfStock: 'Out of Stock',
+      contactForPrice: 'Contact for price',
+      addToQuote: 'Add to Quote',
+      bulkDiscounts: 'Bulk discounts available'
+    },
+    compatibility: {
+      title: 'Find Parts for Your Engine',
+      subtitle: 'Select your engine model to see compatible parts',
+      brand: 'Engine Brand',
+      selectBrand: 'Select Brand...',
+      model: 'Engine Model',
+      modelPlaceholder: 'e.g., LPW2, LPW3, LPW4',
+      notSure: 'Not sure? Check the engine nameplate or ',
+      contactUs: 'contact us',
+      partType: 'Part Type (Optional)',
+      allParts: 'All Parts',
+      findParts: 'Find Compatible Parts',
+      showingResults: 'Showing {count} parts compatible with {model}'
+    },
+    whyChoose: {
+      title: 'Why Choose Wings Engineering for Spare Parts',
+      features: {
+        genuine: {
+          title: '100% Genuine OEM Parts',
+          desc: 'Direct sourcing from authorized distributors, authenticity guarantee, counterfeit-free promise'
+        },
+        dispatch: {
+          title: 'Same-Day Dispatch',
+          desc: 'Orders before 2PM ship same day, express delivery across Nairobi, 3-5 days to Uganda & Tanzania'
+        },
+        support: {
+          title: 'Expert Technical Support',
+          desc: 'Part identification help, installation guidance, WhatsApp/phone/email support'
+        },
+        warranty: {
+          title: '12-Month Warranty',
+          desc: 'Comprehensive warranty coverage, easy returns & exchanges, quality you can trust'
+        }
+      }
+    },
+    catalog: {
+      title: 'Complete Spare Parts Catalog',
+      searchPlaceholder: 'Search parts...',
+      allCategories: 'All Categories',
+      allBrands: 'All Brands',
+      allItems: 'All Items',
+      inStockOnly: 'In Stock Only',
+      availableSoon: 'Available Soon',
+      sortBy: 'Sort by:',
+      relevance: 'Relevance',
+      priceLow: 'Price: Low to High',
+      priceHigh: 'Price: High to Low',
+      nameAZ: 'Name: A-Z',
+      newest: 'Newest First',
+      showing: 'Showing {start}-{end} of {total} parts',
+      noResults: 'No parts found',
+      tryAdjusting: 'Try adjusting your filters or search terms',
+      clearFilters: 'Clear all filters'
+    },
+    bulk: {
+      title: 'Bulk Orders & Fleet Accounts',
+      subtitle: 'Volume discounts for orders of 10+ parts',
+      features: [
+        'Dedicated account manager for fleet operators',
+        'Custom pricing for long-term contracts',
+        'Priority shipping and handling'
+      ],
+      cta: 'Request Bulk Quote',
+      servicesTitle: 'Parts Identification & Sourcing',
+      servicesSubtitle: 'Can\'t find your part? We can help',
+      servicesFeatures: [
+        'Send us a photo for identification',
+        'We source rare and discontinued parts',
+        'Cross-reference service for aftermarket parts'
+      ],
+      servicesCta: 'Get Help Finding Parts'
+    },
+    testimonials: {
+      title: 'Trusted by Maintenance Teams Across East Africa',
+      testimonials: [
+        {
+          quote: 'Wings Engineering provided the exact Lister Petter parts we needed within 24 hours. Genuine OEM quality and excellent service.',
+          author: 'John Kariuki',
+          role: 'Maintenance Manager, Thika Manufacturing Ltd.',
+          rating: 5
+        },
+        {
+          quote: 'Their technical support helped us identify the right part for our old generator. Fast delivery to Mombasa.',
+          author: 'Sarah Mwangi',
+          role: 'Chief Engineer, Coastal Hospital',
+          rating: 5
+        },
+        {
+          quote: 'Bulk order pricing saved us 25% on our annual parts budget. Professional service throughout.',
+          author: 'David Ochieng',
+          role: 'Fleet Manager, TransEast Logistics',
+          rating: 5
+        }
+      ]
+    },
+    quote: {
+      title: 'Request a Quote',
+      subtitle: 'Add parts to your quote request and we\'ll respond within 2 hours',
+      partsInQuote: 'Parts in Your Quote',
+      noPartsAdded: 'No parts added yet. Browse our catalog and add parts to your quote.',
+      totalItems: 'Total Items',
+      continueBrowsing: 'Continue browsing parts',
+      yourInfo: 'Your Information',
+      fullName: 'Full Name*',
+      email: 'Email Address*',
+      phone: 'Phone Number*',
+      phonePlaceholder: '+2547XXXXXXXX',
+      company: 'Company Name',
+      delivery: 'Delivery Location*',
+      deliveryPlaceholder: 'City, Area, or Full Address',
+      notes: 'Additional Notes',
+      notesPlaceholder: 'Any specific requirements, urgency, or questions...',
+      submit: 'Submit Quote Request',
+      responseTime: 'We\'ll respond with a detailed quote within 2 hours (business hours)'
+    },
+    contact: {
+      title: 'Get in Touch',
+      whatsapp: {
+        title: 'WhatsApp Chat',
+        desc: 'Fastest way to get help. Send us a message or photo of your part.',
+        cta: 'Chat on WhatsApp'
+      },
+      phone: {
+        title: 'Call Us',
+        desc: 'Speak directly with our parts specialists.',
+        cta: '+254 718 234 222',
+        hours: 'Mon-Fri: 8AM-6PM | Sat: 9AM-2PM'
+      },
+      email: {
+        title: 'Email',
+        desc: 'Send detailed inquiries or technical documents.',
+        cta: 'parts@wingsengineeringservices.com'
+      },
+      address: 'P.O. Box 4529-01002 Madaraka, Thika, Kenya',
+      serviceAreas: 'Delivering to Nairobi, Kiambu, Thika, Mombasa, Kisumu, Nakuru, and across Uganda & Tanzania'
+    },
+    faq: {
+      title: 'Frequently Asked Questions',
+      questions: [
+        {
+          q: 'Are all your parts genuine OEM?',
+          a: 'Yes, we source directly from authorized distributors. Every part comes with authenticity documentation and a 12-month warranty.'
+        },
+        {
+          q: 'How do I know which part I need?',
+          a: 'Use our compatibility checker, search by part number, or send us a photo via WhatsApp. Our experts will help identify the correct part for your engine.'
+        },
+        {
+          q: 'Do you have parts for older engines?',
+          a: 'Yes, we specialize in sourcing parts for discontinued models. Contact us with your engine details and we\'ll find the right part for you.'
+        },
+        {
+          q: 'What\'s your warranty policy?',
+          a: 'All parts come with a 12-month warranty covering manufacturing defects. Unused parts can be returned within 14 days of purchase.'
+        },
+        {
+          q: 'How fast can you deliver?',
+          a: 'Same-day dispatch for in-stock parts ordered before 2PM. Delivery: 1-2 days in Nairobi, 3-5 days to Uganda and Tanzania.'
+        },
+        {
+          q: 'Can I return a part if it doesn\'t fit?',
+          a: 'Yes, unused parts in original packaging can be returned within 14 days for exchange or refund. See our return policy for details.'
+        },
+        {
+          q: 'What payment methods do you accept?',
+          a: 'M-Pesa, bank transfer, cash on delivery (select areas), and credit facilities for approved commercial accounts.'
+        },
+        {
+          q: 'Do you offer bulk discounts?',
+          a: 'Yes, volume discounts are available for orders of 10+ parts. Contact us for custom pricing on large orders.'
+        }
+      ]
+    },
+    footer: {
+      companyDesc: 'East Africa\'s trusted supplier of genuine industrial spare parts. Serving maintenance teams since 2010.',
+      shop: 'Shop Parts',
+      categories: [
+        'Filters',
+        'Engine Components',
+        'Gaskets & Seals',
+        'Fuel System',
+        'Electrical',
+        'Belts & Hoses'
+      ],
+      company: 'Company',
+      companyLinks: [
+        'About Us',
+        'Our Services',
+        'Portfolio',
+        'Contact',
+        'Careers',
+        'Blog'
+      ],
+      support: 'Support',
+      supportLinks: [
+        'Help Center',
+        'Shipping Policy',
+        'Returns & Warranty',
+        'Technical Support',
+        'Order Tracking',
+        'FAQ'
+      ],
+      legal: 'Legal',
+      legalLinks: [
+        'Terms of Service',
+        'Privacy Policy',
+        'Cookie Policy',
+        'Compliance'
+      ],
+      copyright: '© 2024 Wings Engineering Services Ltd. All rights reserved.',
+      builtWith: 'Built with ❤️ in Kenya'
+    }
+  },
+  sw: {
+    nav: {
+      home: 'Nyumbani',
+      parts: 'Vipuri',
+      engine: 'Tafuta kwa Injini',
+      services: 'Huduma',
+      contact: 'Wasiliana',
+      quote: 'Nukuu Yangu'
+    },
+    hero: {
+      title: 'Vipuri Asilia kwa Injini na Jenereta za Viwandani',
+      subtitle: 'Wataalam wa Lister Petter • Ubora wa OEM • Uwasilishaji wa Haraka Afrika Mashariki',
+      searchPlaceholder: 'Tafuta kwa jina la kipuri, nambari, au modeli ya injini...',
+      searchButton: 'Tafuta Vipuri',
+      popular: 'Maarufu: Vichujio vya Mafuta, Gasketi, Injector, Pete za Piston, Mabearing',
+      browseAll: 'Tazama Vipuri Vyote',
+      checkCompatibility: 'Angalia Ufanani',
+      whatsapp: 'WhatsApp: +254 718 234 222',
+      stats: {
+        partsInStock: 'Vipuri 2,500+ Vinapatikana',
+        sameDayDispatch: 'Kutumwa Siku Hiyohiyo',
+        majorBrands: 'Brandi Zote Kubwa',
+        warranty: 'Dhamana ya Miezi 12'
+      }
+    },
+    trust: {
+      title: 'Tunaminikwa na Viwanda Vikuu vya Afrika Mashariki',
+      subtitle: 'Tunawasilisha vipuri asilia kwa timu za matengenezo kote mkoa'
+    },
+    categories: {
+      title: 'Nunua kwa Aina',
+      subtitle: 'Pata hasa unachohitaji',
+      filters: 'Vichujio',
+      engineComponents: 'Vifaa vya Injini',
+      gaskets: 'Gasketi na Mihuri',
+      fuelSystem: 'Mfumo wa Mafuta',
+      cooling: 'Mfumo wa Kupoza',
+      electrical: 'Umeme',
+      belts: 'Mikanda na Mabomba',
+      hardware: 'Vifungashio na Vifaa',
+      viewAll: 'Tazama vyote katika aina hii'
+    },
+    featured: {
+      title: 'Vipuri Maarufu',
+      subtitle: 'Vinapatikana na tayari kusafirishwa',
+      viewAll: 'Tazama Vipuri 2,500+ Vyote',
+      inStock: 'Inapatikana',
+      lowStock: 'Inakwisha',
+      outOfStock: 'Haipatikani',
+      contactForPrice: 'Wasiliana kwa bei',
+      addToQuote: 'Ongeza kwenye Nukuu',
+      bulkDiscounts: 'Ada ya wingi inapatikana'
+    },
+    compatibility: {
+      title: 'Tafuta Vipuri kwa Injini Yako',
+      subtitle: 'Chagua modeli ya injini yako kuona vipuri vinavyofaa',
+      brand: 'Brandi ya Injini',
+      selectBrand: 'Chagua Brandi...',
+      model: 'Modeli ya Injini',
+      modelPlaceholder: 'mf., LPW2, LPW3, LPW4',
+      notSure: 'Sijui? Angalia sahani ya jina la injini au ',
+      contactUs: 'wasiliana nasi',
+      partType: 'Aina ya Kipuri (Hiari)',
+      allParts: 'Vipuri Vyote',
+      findParts: 'Tafuta Vipuri Vinavyofaa',
+      showingResults: 'Inaonyesha vipuri {count} vinavyofaa na {model}'
+    },
+    whyChoose: {
+      title: 'Kwa Nini Chagua Wings Engineering kwa Vipuri',
+      features: {
+        genuine: {
+          title: 'Vipuri 100% Asilia vya OEM',
+          desc: 'Kununua moja kwa moja kutoka kwa wasambazaji walioidhinishwa, dhamana ya ukweli, ahadi isiyo na bandia'
+        },
+        dispatch: {
+          title: 'Kutumwa Siku Hiyohiyo',
+          desc: 'Maagizo kabla ya saa 2 hutuswa siku hiyo, uwasilishaji wa haraka Nairobi, siku 3-5 hadi Uganda na Tanzania'
+        },
+        support: {
+          title: 'Usaidizi wa Kitaalam',
+          desc: 'Usaidizi wa kutambua vipuri, mwongozo wa usakinishaji, usaidizi wa WhatsApp/simu/barua pepe'
+        },
+        warranty: {
+          title: 'Dhamana ya Miezi 12',
+          desc: 'Dhamana kamili, kurudi na kubadilishwa rahisi, ubora unaoweza kuaminika'
+        }
+      }
+    },
+    catalog: {
+      title: 'Katalogi Kamili ya Vipuri',
+      searchPlaceholder: 'Tafuta vipuri...',
+      allCategories: 'Aina Zote',
+      allBrands: 'Brandi Zote',
+      allItems: 'Vitu Vyote',
+      inStockOnly: 'Vinavyopatikana Pekee',
+      availableSoon: 'Inapatikana Hivi Karibuni',
+      sortBy: 'Panga kwa:',
+      relevance: 'Muhimu',
+      priceLow: 'Bei: Chini hadi Juu',
+      priceHigh: 'Bei: Juu hadi Chini',
+      nameAZ: 'Jina: A-Z',
+      newest: 'Mpya Zaidi Kwanza',
+      showing: 'Inaonyesha {start}-{end} ya vipuri {total}',
+      noResults: 'Hakuna vipuri vilivyopatikana',
+      tryAdjusting: 'Jaribu kurekebisha vichujio vyako au maneno ya utafutaji',
+      clearFilters: 'Futa vichujio vyote'
+    },
+    bulk: {
+      title: 'Maagizo Makubwa na Akaunti za Meli',
+      subtitle: 'Ada ya wingi kwa maagizo ya vipuri 10+',
+      features: [
+        'Meneja wa akaunti maalum kwa waendeshaji wa meli',
+        'Bei maalum kwa mikataba ya muda mrefu',
+        'Usafirishaji na usindikaji wa kipaumbele'
+      ],
+      cta: 'Omba Nukuu ya Wingi',
+      servicesTitle: 'Utambulishaji na Utafutaji wa Vipuri',
+      servicesSubtitle: 'Hauwezi kupata kipuri chako? Tunaweza kusaidia',
+      servicesFeatures: [
+        'Tutumie picha kwa utambulishaji',
+        'Tunatafuta vipuri nadra na vilivyokoma',
+        'Huduma ya kufananisha kwa vipuri vya aftermarket'
+      ],
+      servicesCta: 'Pata Usaidizi wa Kupata Vipuri'
+    },
+    testimonials: {
+      title: 'Tunaminikwa na Timu za Matengenezo Kote Afrika Mashariki',
+      testimonials: [
+        {
+          quote: 'Wings Engineering walitoa vipuri hasa vya Lister Petter tulivyohitaji ndani ya masaa 24. Ubora wa OEM asilia na huduma bora.',
+          author: 'John Kariuki',
+          role: 'Meneja wa Matengenezo, Thika Manufacturing Ltd.',
+          rating: 5
+        },
+        {
+          quote: 'Usaidizi wao wa kiufundi ulitusaidia kutambua kipuri sahihi kwa jenereta yetu ya zamani. Uwasilishaji wa haraka hadi Mombasa.',
+          author: 'Sarah Mwangi',
+          role: 'Mhandisi Mkuu, Coastal Hospital',
+          rating: 5
+        },
+        {
+          quote: 'Bei ya agizo kubwa ilituokoa 25% kwenye bajeti yetu ya mwaka ya vipuri. Huduma ya kiprofesa wakati wote.',
+          author: 'David Ochieng',
+          role: 'Meneja wa Meli, TransEast Logistics',
+          rating: 5
+        }
+      ]
+    },
+    quote: {
+      title: 'Omba Nukuu',
+      subtitle: 'Ongeza vipuri kwenye ombi lako la nukuu na tutajibu ndani ya masaa 2',
+      partsInQuote: 'Vipuri Kwenye Nukuu Yako',
+      noPartsAdded: 'Hakuna vipuri vilivyoongezwa bado. Tembelea katalogi yetu na ongeza vipuri kwenye nukuu yako.',
+      totalItems: 'Vitu Jumla',
+      continueBrowsing: 'Endelea kutembelea vipuri',
+      yourInfo: 'Taarifa Yako',
+      fullName: 'Jina Kamili*',
+      email: 'Anwani ya Barua Pepe*',
+      phone: 'Nambari ya Simu*',
+      phonePlaceholder: '+2547XXXXXXXX',
+      company: 'Jina la Kampuni',
+      delivery: 'Mahali Pa Kufikishia*',
+      deliveryPlaceholder: 'Jiji, Eneo, au Anwani Kamili',
+      notes: 'Maelezo Zaidi',
+      notesPlaceholder: 'Mahitaji yoyote maalum, uharaka, au maswali...',
+      submit: 'Wasilisha Ombi la Nukuu',
+      responseTime: 'Tutajibu kwa nukuu kamili ndani ya masaa 2 (masaa ya kazi)'
+    },
+    contact: {
+      title: 'Wasiliana Nasi',
+      whatsapp: {
+        title: 'Mazungumzo ya WhatsApp',
+        desc: 'Njia ya haraka zaidi ya kupata usaidizi. Tutumie ujumbe au picha ya kipuri chako.',
+        cta: 'Zungumza kwa WhatsApp'
+      },
+      phone: {
+        title: 'Tupigie Simu',
+        desc: 'Zungumza moja kwa moja na wataalam wetu wa vipuri.',
+        cta: '+254 718 234 222',
+        hours: 'Jumatatu-Ijumaa: 8AM-6PM | Jumamosi: 9AM-2PM'
+      },
+      email: {
+        title: 'Barua Pepe',
+        desc: 'Tuma maombi ya kina au hati za kiufundi.',
+        cta: 'parts@wingsengineeringservices.com'
+      },
+      address: 'S.L.P 4529-01002 Madaraka, Thika, Kenya',
+      serviceAreas: 'Tunawasilisha Nairobi, Kiambu, Thika, Mombasa, Kisumu, Nakuru, na kote Uganda na Tanzania'
+    },
+    faq: {
+      title: 'Maswali Yanayoulizwa Mara Kwa Mara',
+      questions: [
+        {
+          q: 'Je, vipuri vyote ni asili ya OEM?',
+          a: 'Ndio, tunanunua moja kwa moja kutoka kwa wasambazaji walioidhinishwa. Kila kipuri kina hati ya ukweli na dhamana ya miezi 12.'
+        },
+        {
+          q: 'Nifanyeje kujua ni kipuri gani ninachohitaji?',
+          a: 'Tumia kiangaliaji wetu cha ufanani, tafuta kwa nambari ya kipuri, au tutumie picha kupitia WhatsApp. Wataalam wetu watasaidia kutambua kipuri sahihi kwa injini yako.'
+        },
+        {
+          q: 'Je, mnayo vipuri kwa injini za zamani?',
+          a: 'Ndio, tunajishughulisha na kutafuta vipuri kwa modeli zilizokoma. Wasiliana nasi kwa maelezo ya injini yako na tutapata kipuri sahihi kwako.'
+        },
+        {
+          q: 'Je, sera yenu ya dhamana ni ipi?',
+          a: 'Vipuri vyote vina dhamana ya miezi 12 inayofunika kasoro za utengenezaji. Vipuri visivyotumika vinaweza kurudishwa ndani ya siku 14 za ununuzi.'
+        },
+        {
+          q: 'Je, mnaweza kusafirishaje haraka?',
+          a: 'Kutumwa siku hiyohiyo kwa vipuri vinavyopatikana vilivyoagizwa kabla ya saa 2. Uwasilishaji: siku 1-2 Nairobi, siku 3-5 hadi Uganda na Tanzania.'
+        },
+        {
+          q: 'Je, naweza kurudisha kipuri ikiwa hakifai?',
+          a: 'Ndio, vipuri visivyotumika kwenye mfuko wa asili vinaweza kurudishwa ndani ya siku 14 kwa kubadilishana au kurudishiwa pesa. Angalia sera yetu ya kurudisha kwa maelezo.'
+        },
+        {
+          q: 'Je, njia gani za malipo mnazokubali?',
+          a: 'M-Pesa, hamisha benki, pesa taslimu wakati wa kufikishwa (maeneo fulani), na mikopo kwa akaunti za kibiashara zilizoidhinishwa.'
+        },
+        {
+          q: 'Je, mna toleo la wingi?',
+          a: 'Ndio, toleo la wingi linapatikana kwa maagizo ya vipuri 10+. Wasiliana nasi kwa bei maalum kwa maagizo makubwa.'
+        }
+      ]
+    },
+    footer: {
+      companyDesc: 'Msambazaji anayeaminika wa vipuri asilia vya viwandani Afrika Mashariki. Inahudumia timu za matengenezo tangu 2010.',
+      shop: 'Nunua Vipuri',
+      categories: [
+        'Vichujio',
+        'Vifaa vya Injini',
+        'Gasketi na Mihuri',
+        'Mfumo wa Mafuta',
+        'Umeme',
+        'Mikanda na Mabomba'
+      ],
+      company: 'Kampuni',
+      companyLinks: [
+        'Kuhusu Sisi',
+        'Huduma Zetu',
+        'Portfolio',
+        'Wasiliana',
+        'Kazi',
+        'Blogu'
+      ],
+      support: 'Usaidizi',
+      supportLinks: [
+        'Kituo cha Usaidizi',
+        'Sera ya Usafirishaji',
+        'Kurudi na Dhamana',
+        'Usaidizi wa Kiufundi',
+        'Kufuatilia Agizo',
+        'Maswali'
+      ],
+      legal: 'Kisheria',
+      legalLinks: [
+        'Masharti ya Huduma',
+        'Sera ya Faragha',
+        'Sera ya Kuki',
+        'Uzingatifu'
+      ],
+      copyright: '© 2024 Wings Engineering Services Ltd. Haki zote zimehifadhiwa.',
+      builtWith: 'Imejengwa kwa ❤️ nchini Kenya'
+    }
+  }
+};
+
+const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
+  const [language, setLanguage] = useState<'en' | 'sw'>('en');
+
+  const toggleLanguage = () => {
+    setLanguage(prev => prev === 'en' ? 'sw' : 'en');
+  };
+
+  const t = (key: string, params?: Record<string, string>) => {
+    const keys = key.split('.');
+    let value: any = translations[language];
+    
+    for (const k of keys) {
+      if (value && typeof value === 'object' && k in value) {
+        value = value[k];
+      } else {
+        value = undefined;
+        break;
+      }
+    }
+
+    if (typeof value === 'string' && params) {
+      return value.replace(/\{(\w+)\}/g, (_, param) => params[param] || '');
+    }
+
+    return value || key;
+  };
+
+  return (
+    <LanguageContext.Provider value={{ language, toggleLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+// ==================== MAIN COMPONENT ====================
 const Index = () => {
-  const { t, language } = useLanguage()
-  const [products, setProducts] = useState<Product[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState('all')
-  const [showQuoteModal, setShowQuoteModal] = useState(false)
-  const [showBookingModal, setShowBookingModal] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [selectedService, setSelectedService] = useState<Service | null>(null)
-  const [contactForm, setContactForm] = useState({
+  const [parts, setParts] = useState<SparePart[]>([]);
+  const [filteredParts, setFilteredParts] = useState<SparePart[]>([]);
+  const [quoteParts, setQuoteParts] = useState<QuoteItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('relevance');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [partsPerPage] = useState(24);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [compatibilityData, setCompatibilityData] = useState({
+    brand: '',
+    model: '',
+    partType: 'all'
+  });
+  const [showCompatibilityResults, setShowCompatibilityResults] = useState(false);
+  const [compatibleParts, setCompatibleParts] = useState<SparePart[]>([]);
+  const [activeFAQ, setActiveFAQ] = useState<number | null>(null);
+  const [contactForm, setContactForm] = useState<ContactFormData>({
     name: '',
     email: '',
     phone: '',
     company: '',
     subject: '',
     message: '',
-    request_type: 'general',
+    request_type: 'parts_inquiry',
     product_name: '',
-    contact_method: 'phone'
-  })
-  const [quoteForm, setQuoteForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    product_service: '',
-    quantity: 1,
-    location: '',
-    requirements: '',
-    budget: ''
-  })
-  const [bookingForm, setBookingForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    equipment_type: '',
-    brand_model: '',
-    issue_description: '',
-    urgency: 'standard',
-    preferred_date: '',
-    preferred_time: ''
-  })
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [stats, setStats] = useState({
-    experience: 0,
-    projects: 0,
-    support: 0,
-    parts: 0
-  })
+    part_number: '',
+    engine_model: '',
+    quantity: 1
+  });
 
-  const contactRef = useRef<HTMLDivElement>(null)
-  const productsRef = useRef<HTMLDivElement>(null)
-  const servicesRef = useRef<HTMLDivElement>(null)
+  const { language, toggleLanguage, t } = useContext(LanguageContext);
 
+  // ==================== DATA FETCHING ====================
   useEffect(() => {
-    fetchData()
-    animateStats()
-  }, [])
+    fetchParts();
+  }, []);
 
-  const fetchData = async () => {
+  const fetchParts = async () => {
     try {
-      setLoading(true)
-      
-      // Fetch products and services in parallel
-      const [productsData, servicesData] = await Promise.all([
-        supabase
-          .from('product_catalog')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(6),
-        supabase
-          .from('service_catalog')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-      ])
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('product_catalog')
+        .select('*')
+        .in('category', ['parts', 'spare_parts'])
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
-      if (productsData.error) throw productsData.error
-      if (servicesData.error) throw servicesData.error
+      if (error) throw error;
 
-      setProducts(productsData.data || [])
-      setServices(servicesData.data || [])
+      if (data) {
+        setParts(data);
+        setFilteredParts(data);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('Failed to load data. Please refresh the page.')
+      console.error('Error fetching parts:', error);
     } finally {
-      setLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const animateStats = () => {
-    const targets = { experience: 15, projects: 500, support: 100, parts: 100 }
-    const duration = 2000
-    const steps = 60
-    const interval = duration / steps
+  // ==================== FILTERS & SEARCH ====================
+  useEffect(() => {
+    let result = [...parts];
 
-    Object.keys(targets).forEach((key) => {
-      let current = 0
-      const target = targets[key as keyof typeof targets]
-      const increment = target / steps
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(part =>
+        part.name.toLowerCase().includes(term) ||
+        part.model?.toLowerCase().includes(term) ||
+        part.part_number?.toLowerCase().includes(term) ||
+        part.compatibility?.some(c => c.toLowerCase().includes(term)) ||
+        part.brand.toLowerCase().includes(term)
+      );
+    }
 
-      const timer = setInterval(() => {
-        current += increment
-        if (current >= target) {
-          current = target
-          clearInterval(timer)
+    // Category filter
+    if (selectedCategory !== 'all') {
+      result = result.filter(part => part.subcategory === selectedCategory);
+    }
+
+    // Brand filter
+    if (selectedBrand !== 'all') {
+      result = result.filter(part => part.brand === selectedBrand);
+    }
+
+    // Stock filter
+    if (stockFilter === 'inStock') {
+      result = result.filter(part => part.stock_quantity > 0);
+    } else if (stockFilter === 'availableSoon') {
+      result = result.filter(part => part.stock_quantity === 0 && part.lead_time_days && part.lead_time_days <= 10);
+    }
+
+    // Sorting
+    switch (sortBy) {
+      case 'priceLow':
+        result.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case 'priceHigh':
+        result.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case 'nameAZ':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'newest':
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      default:
+        // Relevance - prioritize matches with search term
+        if (searchTerm) {
+          const term = searchTerm.toLowerCase();
+          result.sort((a, b) => {
+            const aScore = [
+              a.name.toLowerCase().includes(term),
+              a.model?.toLowerCase().includes(term),
+              a.part_number?.toLowerCase().includes(term)
+            ].filter(Boolean).length;
+            
+            const bScore = [
+              b.name.toLowerCase().includes(term),
+              b.model?.toLowerCase().includes(term),
+              b.part_number?.toLowerCase().includes(term)
+            ].filter(Boolean).length;
+            
+            return bScore - aScore;
+          });
         }
-        setStats(prev => ({ ...prev, [key]: Math.floor(current) }))
-      }, interval)
-    })
-  }
-
-  const filteredProducts = products.filter(product => {
-    if (activeFilter === 'all') return true
-    if (activeFilter === 'generators') return product.category?.toLowerCase().includes('generator')
-    if (activeFilter === 'engines') return product.category?.toLowerCase().includes('engine')
-    if (activeFilter === 'parts') return product.category?.toLowerCase().includes('part')
-    return true
-  })
-
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return re.test(email)
-  }
-
-  const validatePhone = (phone: string) => {
-    const re = /^(\+254|0)[17]\d{8}$/
-    return re.test(phone.replace(/\s/g, ''))
-  }
-
-  const validateForm = (formData: any, type: 'contact' | 'quote' | 'booking') => {
-    const errors: Record<string, string> = {}
-
-    if (!formData.name || formData.name.trim().length < 2) {
-      errors.name = t('validation.minLength').replace('{length}', '2')
     }
 
-    if (!formData.email || !validateEmail(formData.email)) {
-      errors.email = t('validation.email')
-    }
+    setFilteredParts(result);
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, selectedBrand, stockFilter, sortBy, parts]);
 
-    if (formData.phone && !validatePhone(formData.phone)) {
-      errors.phone = t('validation.phone')
-    }
-
-    if (type === 'contact' && (!formData.message || formData.message.trim().length < 10)) {
-      errors.message = t('validation.minLength').replace('{length}', '10')
-    }
-
-    if (type === 'quote' && !formData.product_service) {
-      errors.product_service = t('validation.required')
-    }
-
-    if (type === 'booking' && !formData.equipment_type) {
-      errors.equipment_type = t('validation.required')
-    }
-
-    return errors
-  }
-
-  const handleContactSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const errors = validateForm(contactForm, 'contact')
+  // ==================== QUOTE MANAGEMENT ====================
+  const addToQuote = (part: SparePart) => {
+    const existingItem = quoteParts.find(item => item.id === part.id);
     
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors)
-      toast.error(t('contact.error'))
-      return
+    if (existingItem) {
+      setQuoteParts(prev =>
+        prev.map(item =>
+          item.id === part.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      );
+    } else {
+      setQuoteParts(prev => [
+        ...prev,
+        {
+          id: part.id,
+          name: part.name,
+          brand: part.brand,
+          part_number: part.part_number || part.model,
+          quantity: 1,
+          price: part.price,
+          currency: part.currency,
+          primary_image_url: part.primary_image_url
+        }
+      ]);
     }
+  };
 
-    setIsSubmitting(true)
-    setFormErrors({})
+  const removeFromQuote = (partId: string) => {
+    setQuoteParts(prev => prev.filter(item => item.id !== partId));
+  };
+
+  const updateQuantity = (partId: string, quantity: number) => {
+    if (quantity < 1) {
+      removeFromQuote(partId);
+      return;
+    }
+    
+    setQuoteParts(prev =>
+      prev.map(item =>
+        item.id === partId
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  };
+
+  // ==================== COMPATIBILITY CHECKER ====================
+  const checkCompatibility = async () => {
+    if (!compatibilityData.model) return;
 
     try {
-      await submitContactForm({
-        name: contactForm.name,
-        email: contactForm.email,
-        phone: contactForm.phone,
-        company: contactForm.company,
-        subject: contactForm.subject,
-        message: contactForm.message,
-        request_type: contactForm.request_type,
-        product_name: contactForm.product_name
-      })
+      const { data, error } = await supabase
+        .from('product_catalog')
+        .select('*')
+        .in('category', ['parts', 'spare_parts'])
+        .eq('status', 'active')
+        .contains('compatibility', [compatibilityData.model]);
 
-      toast.success(t('contact.success'))
-      
+      if (error) throw error;
+
+      if (data) {
+        setCompatibleParts(data);
+        setShowCompatibilityResults(true);
+      }
+    } catch (error) {
+      console.error('Error checking compatibility:', error);
+    }
+  };
+
+  // ==================== FORM HANDLING ====================
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const submission = {
+        ...contactForm,
+        submission_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        request_metadata: {
+          quote_items: quoteParts,
+          urgency: 'standard'
+        }
+      };
+
+      const { data, error } = await supabase
+        .from('contact_submissions')
+        .insert([submission])
+        .select();
+
+      if (error) throw error;
+
+      // Create quote if there are items
+      if (quoteParts.length > 0 && data && data.length > 0) {
+        const quoteNumber = `Q-${new Date().getFullYear()}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`;
+        
+        const quoteData = {
+          contact_submission_id: data[0].id,
+          quote_number: quoteNumber,
+          amount: quoteParts.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
+          status: 'pending',
+          valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          notes: contactForm.message,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        await supabase
+          .from('quotes')
+          .insert([quoteData]);
+      }
+
       // Reset form
       setContactForm({
         name: '',
@@ -226,1257 +962,1640 @@ const Index = () => {
         company: '',
         subject: '',
         message: '',
-        request_type: 'general',
+        request_type: 'parts_inquiry',
         product_name: '',
-        contact_method: 'phone'
-      })
+        part_number: '',
+        engine_model: '',
+        quantity: 1
+      });
+      setQuoteParts([]);
+      setShowQuoteModal(false);
+
+      alert(t('quote.responseTime'));
+
     } catch (error) {
-      console.error('Error submitting form:', error)
-      toast.error('Submission failed. Please try again or contact us directly.')
-    } finally {
-      setIsSubmitting(false)
+      console.error('Error submitting form:', error);
+      alert('There was an error submitting your request. Please try again or contact us directly.');
     }
-  }
+  };
 
-  const handleQuoteSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const errors = validateForm(quoteForm, 'quote')
-    
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors)
-      toast.error('Please check the form for errors')
-      return
-    }
+  // ==================== PAGINATION ====================
+  const indexOfLastPart = currentPage * partsPerPage;
+  const indexOfFirstPart = indexOfLastPart - partsPerPage;
+  const currentParts = filteredParts.slice(indexOfFirstPart, indexOfLastPart);
+  const totalPages = Math.ceil(filteredParts.length / partsPerPage);
 
-    setIsSubmitting(true)
-    setFormErrors({})
+  // ==================== CATEGORIES ====================
+  const categories = [
+    { id: 'filters', name: t('categories.filters'), icon: Filter, count: parts.filter(p => p.subcategory === 'Filters').length },
+    { id: 'engine_components', name: t('categories.engineComponents'), icon: Cog, count: parts.filter(p => p.subcategory === 'Engine Components').length },
+    { id: 'gaskets', name: t('categories.gaskets'), icon: Package, count: parts.filter(p => p.subcategory === 'Gaskets & Seals').length },
+    { id: 'fuel_system', name: t('categories.fuelSystem'), icon: Droplet, count: parts.filter(p => p.subcategory === 'Fuel System').length },
+    { id: 'cooling', name: t('categories.cooling'), icon: Wind, count: parts.filter(p => p.subcategory === 'Cooling System').length },
+    { id: 'electrical', name: t('categories.electrical'), icon: Zap, count: parts.filter(p => p.subcategory === 'Electrical').length },
+    { id: 'belts', name: t('categories.belts'), icon: Link, count: parts.filter(p => p.subcategory === 'Belts & Hoses').length },
+    { id: 'hardware', name: t('categories.hardware'), icon: Wrench, count: parts.filter(p => p.subcategory === 'Fasteners & Hardware').length }
+  ];
 
-    try {
-      // First create contact submission
-      const contactData = await submitContactForm({
-        name: quoteForm.name,
-        email: quoteForm.email,
-        phone: quoteForm.phone,
-        company: quoteForm.company,
-        subject: `Quote Request for ${quoteForm.product_service}`,
-        message: `Quantity: ${quoteForm.quantity}\nLocation: ${quoteForm.location}\nRequirements: ${quoteForm.requirements}\nBudget: ${quoteForm.budget}`,
-        request_type: 'quote',
-        product_name: quoteForm.product_service
-      })
-
-      // Generate quote number
-      const now = new Date()
-      const quoteNumber = `Q-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
-
-      // Create quote record
-      await requestQuote({
-        contact_submission_id: contactData[0]?.id,
-        quote_number: quoteNumber,
-        status: 'pending',
-        valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: quoteForm.requirements
-      })
-
-      toast.success(t('modal.quote.success'))
-      setShowQuoteModal(false)
-      
-      // Reset form
-      setQuoteForm({
-        name: '',
-        email: '',
-        phone: '',
-        company: '',
-        product_service: '',
-        quantity: 1,
-        location: '',
-        requirements: '',
-        budget: ''
-      })
-    } catch (error) {
-      console.error('Error submitting quote:', error)
-      toast.error('Quote submission failed. Please try again or contact us directly.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleBookingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const errors = validateForm(bookingForm, 'booking')
-    
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors)
-      toast.error('Please check the form for errors')
-      return
-    }
-
-    setIsSubmitting(true)
-    setFormErrors({})
-
-    try {
-      await submitContactForm({
-        name: bookingForm.name,
-        email: bookingForm.email,
-        phone: bookingForm.phone,
-        subject: `Service Booking: ${bookingForm.equipment_type}`,
-        message: `Equipment: ${bookingForm.brand_model}\nIssue: ${bookingForm.issue_description}\nUrgency: ${bookingForm.urgency}\nPreferred: ${bookingForm.preferred_date} ${bookingForm.preferred_time}`,
-        request_type: 'service'
-      })
-
-      toast.success(t('modal.booking.success'))
-      setShowBookingModal(false)
-      
-      // Reset form
-      setBookingForm({
-        name: '',
-        email: '',
-        phone: '',
-        equipment_type: '',
-        brand_model: '',
-        issue_description: '',
-        urgency: 'standard',
-        preferred_date: '',
-        preferred_time: ''
-      })
-    } catch (error) {
-      console.error('Error submitting booking:', error)
-      toast.error('Booking submission failed. Please try again or contact us directly.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const scrollToSection = (section: string) => {
-    const element = document.getElementById(section)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
-
-  const openWhatsApp = (prefilledMessage = '') => {
-    const message = encodeURIComponent(prefilledMessage || t('whatsapp.message'))
-    const phoneNumber = '254718234222'
-    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank')
-  }
-
-  const handleProductWhatsApp = (productName: string) => {
-    const message = `Hi, I'm interested in the ${productName}. Can you provide more details and pricing?`
-    openWhatsApp(message)
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">Loading Wings Engineering...</p>
-        </div>
-      </div>
-    )
-  }
+  // ==================== STOCK STATUS ====================
+  const getStockStatus = (part: SparePart) => {
+    if (part.stock_quantity > 10) return { status: 'inStock', text: t('featured.inStock'), color: 'bg-green-500' };
+    if (part.stock_quantity > 0) return { status: 'lowStock', text: `${t('featured.lowStock')}: ${part.stock_quantity}`, color: 'bg-yellow-500' };
+    if (part.lead_time_days) return { status: 'backorder', text: `${t('catalog.availableSoon')}: ${part.lead_time_days} ${t('common.days')}`, color: 'bg-blue-500' };
+    return { status: 'outOfStock', text: t('featured.outOfStock'), color: 'bg-red-500' };
+  };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Structured Data for SEO */}
-      <script type="application/ld+json">
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "LocalBusiness",
-          "name": "Wings Engineering Services Ltd",
-          "image": "https://wings.lovable.app/android-chrome-512x512.png",
-          "telephone": "+254718234222",
-          "email": "sales@wingsengineeringservices.com",
-          "address": {
-            "@type": "PostalAddress",
-            "streetAddress": "P.O. Box 4529-01002 Madaraka",
-            "addressLocality": "Thika",
-            "addressRegion": "Nairobi County",
-            "postalCode": "01002",
-            "addressCountry": "KE"
-          },
-          "geo": {
-            "@type": "GeoCoordinates",
-            "latitude": "-1.033",
-            "longitude": "37.069"
-          },
-          "url": "https://wings.lovable.app",
-          "priceRange": "Contact for quote",
-          "openingHoursSpecification": [
-            {
-              "@type": "OpeningHoursSpecification",
-              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-              "opens": "08:00",
-              "closes": "18:00"
-            },
-            {
-              "@type": "OpeningHoursSpecification",
-              "dayOfWeek": "Saturday",
-              "opens": "09:00",
-              "closes": "14:00"
-            }
-          ],
-          "sameAs": [
-            "https://www.facebook.com/wingsengineeringservices",
-            "https://www.instagram.com/wingsengineering"
-          ]
-        })}
-      </script>
-
-      <Navigation />
-      
-      <main>
-        {/* Hero Section */}
-        <section id="hero" className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-gray-900">
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-            <div className="text-center">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 animate-in slide-in-from-left duration-1000">
-                {t('hero.headline')}
-              </h1>
-              <p className="text-xl sm:text-2xl text-blue-200 mb-8 max-w-3xl mx-auto">
-                {t('hero.subheadline')}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                <Button 
-                  size="lg" 
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-6 text-lg"
-                  onClick={() => setShowQuoteModal(true)}
-                >
-                  {t('hero.cta.quote')}
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-white text-white hover:bg-white/10 px-8 py-6 text-lg"
-                  onClick={() => window.location.href = 'tel:+254718234222'}
-                >
-                  <Phone className="mr-2 h-5 w-5" />
-                  {t('hero.cta.call')}
-                </Button>
+    <LanguageProvider>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+        {/* ==================== NAVIGATION ==================== */}
+        <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-200/50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              {/* Logo */}
+              <div className="flex items-center">
+                <div className="flex items-center space-x-2">
+                  <Cog className="w-8 h-8 text-blue-600" />
+                  <span className="text-xl font-semibold text-gray-900">Wings Engineering</span>
+                </div>
               </div>
+
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center space-x-8">
+                <a href="#parts" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                  {t('nav.parts')}
+                </a>
+                <a href="#compatibility" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                  {t('nav.engine')}
+                </a>
+                <a href="#services" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                  {t('nav.services')}
+                </a>
+                <a href="#contact" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                  {t('nav.contact')}
+                </a>
+                
+                {/* Search Icon */}
+                <button
+                  onClick={() => setShowSearchModal(true)}
+                  className="p-2 text-gray-600 hover:text-blue-600"
+                >
+                  <Search size={20} />
+                </button>
+
+                {/* Language Toggle */}
+                <button
+                  onClick={toggleLanguage}
+                  className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-blue-600"
+                >
+                  <Globe size={16} />
+                  <span>{language === 'en' ? 'EN' : 'SW'}</span>
+                </button>
+
+                {/* Quote Button */}
+                <button
+                  onClick={() => setShowQuoteModal(true)}
+                  className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  <ShoppingCart size={16} />
+                  <span>{t('nav.quote')}</span>
+                  {quoteParts.length > 0 && (
+                    <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
+                      {quoteParts.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* WhatsApp */}
+                <a
+                  href="https://wa.me/254718234222"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <MessageCircle size={20} />
+                </a>
+              </div>
+
+              {/* Mobile Menu Button */}
+              <div className="md:hidden flex items-center space-x-4">
+                <button
+                  onClick={() => setShowQuoteModal(true)}
+                  className="relative p-2"
+                >
+                  <ShoppingCart size={20} />
+                  {quoteParts.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                      {quoteParts.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2"
+                >
+                  <Menu size={24} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          <AnimatePresence>
+            {showMobileMenu && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="md:hidden backdrop-blur-xl bg-white/95 border-t border-gray-200"
+              >
+                <div className="px-4 py-4 space-y-4">
+                  <a href="#parts" className="block text-gray-600 hover:text-blue-600 py-2">
+                    {t('nav.parts')}
+                  </a>
+                  <a href="#compatibility" className="block text-gray-600 hover:text-blue-600 py-2">
+                    {t('nav.engine')}
+                  </a>
+                  <a href="#services" className="block text-gray-600 hover:text-blue-600 py-2">
+                    {t('nav.services')}
+                  </a>
+                  <a href="#contact" className="block text-gray-600 hover:text-blue-600 py-2">
+                    {t('nav.contact')}
+                  </a>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <button
+                      onClick={toggleLanguage}
+                      className="flex items-center space-x-2 text-gray-600"
+                    >
+                      <Globe size={16} />
+                      <span>{language === 'en' ? 'English' : 'Kiswahili'}</span>
+                    </button>
+                    <a
+                      href="https://wa.me/254718234222"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+                    >
+                      <MessageCircle size={16} />
+                      <span>WhatsApp</span>
+                    </a>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </nav>
+
+        {/* ==================== HERO SECTION ==================== */}
+        <section className="min-h-screen flex items-center justify-center pt-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
+            <div className="text-center">
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 leading-tight"
+              >
+                {t('hero.title')}
+              </motion.h1>
               
-              {/* Stats Bar */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-lg lg:text-xl font-normal text-gray-600 max-w-2xl mx-auto mt-6"
+              >
+                {t('hero.subtitle')}
+              </motion.p>
+
+              {/* Search Bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="max-w-2xl mx-auto mt-12"
+              >
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={t('hero.searchPlaceholder')}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-6 py-5 text-lg rounded-2xl shadow-2xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all backdrop-blur-xl bg-white/90"
+                  />
+                  <button
+                    onClick={() => setShowSearchModal(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    {t('hero.searchButton')}
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-3 text-center">
+                  {t('hero.popular')}
+                </p>
+              </motion.div>
+
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8"
+              >
+                <a
+                  href="#parts"
+                  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
+                >
+                  {t('hero.browseAll')}
+                </a>
+                <a
+                  href="#compatibility"
+                  className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-blue-50 transition-colors"
+                >
+                  {t('hero.checkCompatibility')}
+                </a>
+                <a
+                  href="https://wa.me/254718234222"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors"
+                >
+                  <MessageCircle size={20} />
+                  <span>{t('hero.whatsapp')}</span>
+                </a>
+              </motion.div>
+
+              {/* Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-12 max-w-4xl mx-auto"
+              >
                 {[
-                  { icon: Clock, value: stats.experience, label: t('hero.stats.experience') },
-                  { icon: CheckCircle, value: stats.projects, label: t('hero.stats.projects') },
-                  { icon: AlertCircle, value: stats.support, label: t('hero.stats.support') },
-                  { icon: Shield, value: stats.parts, label: t('hero.stats.parts') }
+                  { icon: Package, text: t('hero.stats.partsInStock') },
+                  { icon: Zap, text: t('hero.stats.sameDayDispatch') },
+                  { icon: CheckCircle, text: t('hero.stats.majorBrands') },
+                  { icon: Shield, text: t('hero.stats.warranty') }
                 ].map((stat, index) => (
-                  <div key={index} className="text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <stat.icon className="h-8 w-8 text-orange-500 mr-2" />
-                      <span className="text-3xl font-bold text-white">{stat.value}+</span>
-                    </div>
-                    <p className="text-sm text-blue-200">{stat.label}</p>
+                  <div
+                    key={index}
+                    className="backdrop-blur-xl bg-white/60 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+                  >
+                    <stat.icon className="w-8 h-8 text-blue-600 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-700 text-center">
+                      {stat.text}
+                    </p>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== TRUST BADGES ==================== */}
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-semibold text-gray-900 text-center mb-12">
+              {t('trust.title')}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              {[
+                'Lister Petter',
+                'Safaricom',
+                'Nairobi Hospital',
+                'Thika Manufacturing',
+                'Coastal Power',
+                'TransEast Logistics'
+              ].map((company, index) => (
+                <div
+                  key={index}
+                  className="backdrop-blur-md bg-white/40 rounded-xl p-6 h-24 flex items-center justify-center hover:-translate-y-1 transition-transform grayscale hover:grayscale-0"
+                >
+                  <span className="text-lg font-semibold text-gray-700">{company}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== CATEGORIES ==================== */}
+        <section id="parts" className="py-20 lg:py-32">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 text-center mb-4">
+              {t('categories.title')}
+            </h2>
+            <p className="text-lg text-gray-600 text-center mb-12">
+              {t('categories.subtitle')}
+            </p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {categories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedCategory(category.id === 'all' ? 'all' : category.name)}
+                  className="relative h-80 lg:h-96 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent z-10" />
+                  <div className="absolute inset-0 bg-gray-100">
+                    {/* Placeholder image - in production would be actual category image */}
+                    <div className="w-full h-full bg-gradient-to-br from-blue-100 to-gray-100" />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 z-20 p-6 text-left">
+                    <category.icon className="w-8 h-8 text-white mb-2" />
+                    <h3 className="text-xl font-bold text-white mb-1">
+                      {category.name}
+                    </h3>
+                    <p className="text-sm text-gray-200">
+                      {category.count}+ {t('common.parts')}
+                    </p>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== FEATURED PARTS ==================== */}
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl font-bold text-gray-900 text-center mb-4">
+              {t('featured.title')}
+            </h2>
+            <p className="text-lg text-gray-600 text-center mb-12">
+              {t('featured.subtitle')}
+            </p>
+
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 rounded-3xl h-64 mb-4" />
+                    <div className="h-4 bg-gray-200 rounded mb-2" />
+                    <div className="h-3 bg-gray-200 rounded w-3/4" />
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Partners Section */}
-        <Partners />
-
-        {/* About Section */}
-        <section id="about" className="py-16 lg:py-24 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6">
-                  {t('about.title')}
-                </h2>
-                <p className="text-lg text-gray-600 mb-6">
-                  {t('about.content')}
-                </p>
-                
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  {[t('about.features.experience'), t('about.features.parts'), t('about.features.support'), t('about.features.specialist')].map((feature, index) => (
-                    <div key={index} className="flex items-center">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                      <span className="text-gray-700">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-start">
-                    <Shield className="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-gray-600">{t('about.trust.legal')}</p>
-                  </div>
-                  <div className="flex items-start">
-                    <Badge className="mr-2">✓</Badge>
-                    <p className="text-sm text-gray-600">{t('about.trust.certified')}</p>
-                  </div>
-                  <div className="flex items-start">
-                    <MapPin className="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-gray-600">{t('about.trust.local')}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="relative">
-                <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden shadow-2xl">
-                  <img 
-                    src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80"
-                    alt="Wings Engineering workshop in Thika"
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-                <div className="absolute -bottom-6 -left-6 bg-white p-6 rounded-2xl shadow-xl max-w-sm">
-                  <h3 className="font-bold text-gray-900 mb-2">Thika Headquarters</h3>
-                  <p className="text-sm text-gray-600">P.O. Box 4529-01002 Madaraka, Thika</p>
-                  <Button variant="link" className="p-0 h-auto text-blue-600 mt-2">
-                    Get Directions →
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Services Section */}
-        <section id="services" className="py-16 lg:py-24 bg-white" ref={servicesRef}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                {t('services.title')}
-              </h2>
-              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                Comprehensive engineering solutions for industrial and commercial clients across East Africa
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {services.slice(0, 6).map((service, index) => {
-                const icons = [Zap, Wrench, Settings, Calendar, AlertCircleIcon, FileText]
-                const Icon = icons[index] || Settings
-                
-                return (
-                  <Card key={service.id} className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <Icon className="h-10 w-10 text-blue-600" />
-                        <Badge variant={service.mobile_service ? "default" : "secondary"}>
-                          {service.mobile_service ? 'Mobile' : 'On-site'}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-xl mt-4">{service.name}</CardTitle>
-                      <CardDescription>{service.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {service.requirements?.slice(0, 3).map((req, i) => (
-                          <div key={i} className="flex items-center text-sm">
-                            <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                            <span className="text-gray-600">{req}</span>
+            ) : currentParts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {currentParts.slice(0, 8).map((part) => {
+                  const stockStatus = getStockStatus(part);
+                  return (
+                    <motion.div
+                      key={part.id}
+                      whileHover={{ scale: 1.02 }}
+                      className="backdrop-blur-xl bg-white/80 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                    >
+                      {/* Image Container */}
+                      <div className="relative h-64 bg-gray-100 overflow-hidden">
+                        {part.primary_image_url ? (
+                          <img
+                            src={part.primary_image_url}
+                            alt={part.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-gray-100 flex items-center justify-center">
+                            <Package className="w-16 h-16 text-gray-400" />
                           </div>
-                        ))}
-                      </div>
-                      {service.base_price && (
-                        <div className="mt-4 pt-4 border-t">
-                          <p className="text-lg font-semibold text-gray-900">
-                            From {service.currency} {service.base_price.toLocaleString()}
-                            {service.price_type && <span className="text-sm font-normal text-gray-600"> / {service.price_type}</span>}
-                          </p>
+                        )}
+                        {/* Stock Badge */}
+                        <div className={`absolute top-4 right-4 ${stockStatus.color} text-white text-xs font-semibold px-3 py-1 rounded-full`}>
+                          {stockStatus.text}
                         </div>
-                      )}
-                    </CardContent>
-                    <CardFooter>
-                      <Button 
-                        className="w-full"
-                        onClick={() => {
-                          setSelectedService(service)
-                          setShowBookingModal(true)
-                        }}
-                      >
-                        {t('services.cta.book')}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                )
-              })}
-            </div>
-
-            <div className="text-center mt-12">
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => scrollToSection('contact')}
-              >
-                View All Services
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* Products Section */}
-        <section id="products" className="py-16 lg:py-24 bg-gray-50" ref={productsRef}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                {t('products.title')}
-              </h2>
-              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                High-quality generators, engines, and genuine spare parts from trusted brands
-              </p>
-            </div>
-
-            {/* Filter Tabs */}
-            <Tabs defaultValue="all" className="mb-8">
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-4">
-                <TabsTrigger value="all" onClick={() => setActiveFilter('all')}>
-                  {t('products.filter.all')}
-                </TabsTrigger>
-                <TabsTrigger value="generators" onClick={() => setActiveFilter('generators')}>
-                  {t('products.filter.generators')}
-                </TabsTrigger>
-                <TabsTrigger value="engines" onClick={() => setActiveFilter('engines')}>
-                  {t('products.filter.engines')}
-                </TabsTrigger>
-                <TabsTrigger value="parts" onClick={() => setActiveFilter('parts')}>
-                  {t('products.filter.parts')}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {/* Products Grid */}
-            {loading ? (
-              <div className="text-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                <p className="mt-2 text-gray-600">Loading products...</p>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-                <p className="text-gray-600">Check back soon for our latest products</p>
+                        {/* Quick View Button */}
+                        <button className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white font-semibold text-lg">
+                            Quick View
+                          </span>
+                        </button>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="p-6">
+                        {/* Brand */}
+                        <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+                          {part.brand}
+                        </p>
+                        
+                        {/* Part Name */}
+                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2">
+                          {part.name}
+                        </h3>
+                        
+                        {/* Part Number */}
+                        <p className="text-sm text-gray-500 mb-3">
+                          Part#: {part.model || part.part_number || t('featured.contactForPrice')}
+                        </p>
+                        
+                        {/* Compatibility Tags */}
+                        {part.compatibility && part.compatibility.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-4">
+                            {part.compatibility.slice(0, 3).map((model) => (
+                              <span
+                                key={model}
+                                className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md"
+                              >
+                                {model}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Price Row */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            {part.price ? (
+                              <>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  KES {part.price.toLocaleString()}
+                                </p>
+                                {part.bulk_pricing && (
+                                  <p className="text-xs text-gray-500">
+                                    {t('featured.bulkDiscounts')}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-sm font-medium text-gray-700">
+                                {t('featured.contactForPrice')}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {/* Add to Quote Button */}
+                          <button
+                            onClick={() => addToQuote(part)}
+                            className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition-colors"
+                          >
+                            <Plus size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredProducts.map((product) => (
-                  <Card key={product.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300">
-                    <div className="aspect-w-16 aspect-h-9 bg-gray-100 overflow-hidden">
-                      {product.primary_image_url ? (
-                        <img 
-                          src={product.primary_image_url} 
-                          alt={product.name}
-                          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <Package className="h-16 w-16 text-gray-400" />
-                        </div>
-                      )}
-                      {product.stock_quantity > 0 ? (
-                        <Badge className="absolute top-3 right-3 bg-green-500">In Stock</Badge>
-                      ) : (
-                        <Badge variant="destructive" className="absolute top-3 right-3">Out of Stock</Badge>
-                      )}
-                    </div>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{product.name}</CardTitle>
-                          <CardDescription>{product.brand} {product.model}</CardDescription>
-                        </div>
-                        {product.price && (
-                          <span className="text-lg font-bold text-gray-900">
-                            {product.currency} {product.price.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {product.power_kva && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">{t('products.specs.power')}:</span>
-                            <span className="font-medium">{product.power_kva} kVA</span>
-                          </div>
-                        )}
-                        {product.engine_brand && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">{t('products.specs.engine')}:</span>
-                            <span className="font-medium">{product.engine_brand} {product.engine_model}</span>
-                          </div>
-                        )}
-                        {product.fuel_type && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">{t('products.specs.fuel')}:</span>
-                            <span className="font-medium">{product.fuel_type}</span>
-                          </div>
-                        )}
-                        {product.voltage && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">{t('products.specs.voltage')}:</span>
-                            <span className="font-medium">{product.voltage}</span>
-                          </div>
-                        )}
-                      </div>
-                      {product.short_description && (
-                        <p className="mt-4 text-sm text-gray-600 line-clamp-2">{product.short_description}</p>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex flex-col space-y-2">
-                      <Button 
-                        className="w-full"
-                        onClick={() => setSelectedProduct(product)}
-                      >
-                        {t('products.cta.details')}
-                      </Button>
-                      <div className="flex gap-2 w-full">
-                        <Button 
-                          variant="outline" 
-                          className="flex-1"
-                          onClick={() => {
-                            setQuoteForm(prev => ({ ...prev, product_service: product.name }))
-                            setShowQuoteModal(true)
-                          }}
-                        >
-                          {t('products.cta.quote')}
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleProductWhatsApp(product.name)}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))}
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">{t('catalog.noResults')}</p>
               </div>
             )}
 
             <div className="text-center mt-12">
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => {
-                  // Navigate to full products page or expand section
-                  setActiveFilter('all')
-                }}
+              <a
+                href="#catalog"
+                className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-lg font-semibold"
               >
-                {t('products.viewAll')}
-              </Button>
+                <span>{t('featured.viewAll')}</span>
+                <ChevronRight size={20} />
+              </a>
             </div>
           </div>
         </section>
 
-        {/* Why Choose Us Section */}
-        <WhyChooseUs />
-
-        {/* Portfolio Section */}
-        <Portfolio />
-
-        {/* Testimonials Section */}
-        <Testimonials />
-
-        {/* Contact Section */}
-        <section id="contact" className="py-16 lg:py-24 bg-white" ref={contactRef}>
+        {/* ==================== COMPATIBILITY CHECKER ==================== */}
+        <section id="compatibility" className="py-24 bg-gradient-to-br from-blue-50 to-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                {t('contact.title')}
-              </h2>
-              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                Get in touch with our engineering team for quotes, service bookings, or technical consultations
-              </p>
-            </div>
+            <h2 className="text-4xl font-bold text-gray-900 text-center mb-4">
+              {t('compatibility.title')}
+            </h2>
+            <p className="text-lg text-gray-600 text-center mb-12">
+              {t('compatibility.subtitle')}
+            </p>
 
-            <div className="grid lg:grid-cols-2 gap-12">
-              {/* Contact Form */}
-              <div>
-                <form onSubmit={handleContactSubmit} className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">{t('contact.form.name')} *</Label>
-                      <Input
-                        id="name"
-                        value={contactForm.name}
-                        onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                        className={formErrors.name ? 'border-red-500' : ''}
-                      />
-                      {formErrors.name && (
-                        <p className="text-sm text-red-500">{formErrors.name}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">{t('contact.form.email')} *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={contactForm.email}
-                        onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                        className={formErrors.email ? 'border-red-500' : ''}
-                      />
-                      {formErrors.email && (
-                        <p className="text-sm text-red-500">{formErrors.email}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">{t('contact.form.phone')}</Label>
-                      <Input
-                        id="phone"
-                        value={contactForm.phone}
-                        onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                        className={formErrors.phone ? 'border-red-500' : ''}
-                        placeholder="+254 718 234 222"
-                      />
-                      {formErrors.phone && (
-                        <p className="text-sm text-red-500">{formErrors.phone}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="company">{t('contact.form.company')}</Label>
-                      <Input
-                        id="company"
-                        value={contactForm.company}
-                        onChange={(e) => setContactForm({ ...contactForm, company: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="request_type">{t('contact.form.type')}</Label>
-                    <Select
-                      value={contactForm.request_type}
-                      onValueChange={(value) => setContactForm({ ...contactForm, request_type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="quote">{t('contact.form.type.quote')}</SelectItem>
-                        <SelectItem value="service">{t('contact.form.type.service')}</SelectItem>
-                        <SelectItem value="parts">{t('contact.form.type.parts')}</SelectItem>
-                        <SelectItem value="general">{t('contact.form.type.general')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="product_name">{t('contact.form.product')}</Label>
-                    <Input
-                      id="product_name"
-                      value={contactForm.product_name}
-                      onChange={(e) => setContactForm({ ...contactForm, product_name: e.target.value })}
-                      placeholder="e.g., 50kVA Generator, Engine Repair, etc."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="message">{t('contact.form.message')} *</Label>
-                    <Textarea
-                      id="message"
-                      rows={4}
-                      value={contactForm.message}
-                      onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                      className={formErrors.message ? 'border-red-500' : ''}
-                    />
-                    {formErrors.message && (
-                      <p className="text-sm text-red-500">{formErrors.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>{t('contact.form.contact')}</Label>
-                    <RadioGroup
-                      value={contactForm.contact_method}
-                      onValueChange={(value) => setContactForm({ ...contactForm, contact_method: value })}
-                      className="flex space-x-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="phone" id="contact-phone" />
-                        <Label htmlFor="contact-phone">{t('contact.form.contact.phone')}</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="email" id="contact-email" />
-                        <Label htmlFor="contact-email">{t('contact.form.contact.email')}</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="whatsapp" id="contact-whatsapp" />
-                        <Label htmlFor="contact-whatsapp">{t('contact.form.contact.whatsapp')}</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      t('contact.form.submit')
-                    )}
-                  </Button>
-                </form>
-              </div>
-
-              {/* Contact Information */}
-              <div className="space-y-8">
+            <div className="max-w-3xl mx-auto backdrop-blur-xl bg-white/90 rounded-3xl shadow-2xl p-8 lg:p-12">
+              <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); checkCompatibility(); }}>
+                {/* Engine Brand */}
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('contact.info.title')}</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-start">
-                      <MapPin className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-gray-900">Address</p>
-                        <p className="text-gray-600">{t('contact.info.address')}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <Phone className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-gray-900">Phone</p>
-                        <a href="tel:+254718234222" className="text-gray-600 hover:text-blue-600">
-                          {t('contact.info.phone')}
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <Mail className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-gray-900">Email</p>
-                        <a href="mailto:sales@wingsengineeringservices.com" className="text-gray-600 hover:text-blue-600">
-                          {t('contact.info.email')}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t('compatibility.brand')}
+                  </label>
+                  <select
+                    value={compatibilityData.brand}
+                    onChange={(e) => setCompatibilityData(prev => ({ ...prev, brand: e.target.value }))}
+                    className="w-full px-4 py-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  >
+                    <option value="">{t('compatibility.selectBrand')}</option>
+                    <option value="Lister Petter">Lister Petter</option>
+                    <option value="Perkins">Perkins</option>
+                    <option value="CAT">CAT</option>
+                    <option value="Cummins">Cummins</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
-                <Separator />
-
+                {/* Engine Model */}
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('contact.info.hours.title')}</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('contact.info.hours.weekdays')}</span>
-                      <span className="font-medium">8:00 AM - 6:00 PM</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('contact.info.hours.saturday')}</span>
-                      <span className="font-medium">9:00 AM - 2:00 PM</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('contact.info.hours.sunday')}</span>
-                      <span className="font-medium">Closed</span>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Location Map</h3>
-                  <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden">
-                    <iframe
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d63820.19694522153!2d37.06925939999999!3d-1.0332693999999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f4f3b3b3b3b3b%3A0x3b3b3b3b3b3b3b3b!2sThika%2C%20Kenya!5e0!3m2!1sen!2sus!4v1234567890123"
-                      width="100%"
-                      height="250"
-                      style={{ border: 0 }}
-                      allowFullScreen
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title="Wings Engineering Thika Location"
-                    />
-                  </div>
-                  <Button variant="outline" className="w-full mt-4">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    Get Directions on Google Maps
-                  </Button>
-                </div>
-
-                <div className="flex space-x-4">
-                  <Button variant="outline" className="flex-1" onClick={() => openWhatsApp()}>
-                    <Phone className="mr-2 h-4 w-4" />
-                    WhatsApp
-                  </Button>
-                  <Button variant="outline" className="flex-1" onClick={() => window.location.href = 'tel:+254718234222'}>
-                    <Phone className="mr-2 h-4 w-4" />
-                    Call Now
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <Footer />
-
-      {/* WhatsApp Floating Button */}
-      <WhatsAppButton />
-
-      {/* Quote Request Modal */}
-      <Dialog open={showQuoteModal} onOpenChange={setShowQuoteModal}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t('modal.quote.title')}</DialogTitle>
-            <DialogDescription>
-              Fill out the form below and we'll send you a detailed quote within 48 hours
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleQuoteSubmit} className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quote-name">{t('contact.form.name')} *</Label>
-                <Input
-                  id="quote-name"
-                  value={quoteForm.name}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, name: e.target.value })}
-                  className={formErrors.name ? 'border-red-500' : ''}
-                />
-                {formErrors.name && <p className="text-sm text-red-500">{formErrors.name}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quote-email">{t('contact.form.email')} *</Label>
-                <Input
-                  id="quote-email"
-                  type="email"
-                  value={quoteForm.email}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, email: e.target.value })}
-                  className={formErrors.email ? 'border-red-500' : ''}
-                />
-                {formErrors.email && <p className="text-sm text-red-500">{formErrors.email}</p>}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quote-phone">{t('contact.form.phone')}</Label>
-                <Input
-                  id="quote-phone"
-                  value={quoteForm.phone}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, phone: e.target.value })}
-                  className={formErrors.phone ? 'border-red-500' : ''}
-                />
-                {formErrors.phone && <p className="text-sm text-red-500">{formErrors.phone}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quote-company">{t('contact.form.company')}</Label>
-                <Input
-                  id="quote-company"
-                  value={quoteForm.company}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, company: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quote-product">{t('contact.form.product')} *</Label>
-              <Input
-                id="quote-product"
-                value={quoteForm.product_service}
-                onChange={(e) => setQuoteForm({ ...quoteForm, product_service: e.target.value })}
-                className={formErrors.product_service ? 'border-red-500' : ''}
-                placeholder="e.g., 50kVA Generator, Engine Parts, Maintenance Service"
-              />
-              {formErrors.product_service && <p className="text-sm text-red-500">{formErrors.product_service}</p>}
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quote-quantity">{t('modal.quote.quantity')}</Label>
-                <Input
-                  id="quote-quantity"
-                  type="number"
-                  min="1"
-                  value={quoteForm.quantity}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, quantity: parseInt(e.target.value) || 1 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quote-budget">{t('modal.quote.budget')}</Label>
-                <Select
-                  value={quoteForm.budget}
-                  onValueChange={(value) => setQuoteForm({ ...quoteForm, budget: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select budget range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="under-500k">Under KES 500,000</SelectItem>
-                    <SelectItem value="500k-1m">KES 500,000 - 1M</SelectItem>
-                    <SelectItem value="1m-5m">KES 1M - 5M</SelectItem>
-                    <SelectItem value="5m-plus">KES 5M+</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quote-location">{t('modal.quote.location')}</Label>
-              <Input
-                id="quote-location"
-                value={quoteForm.location}
-                onChange={(e) => setQuoteForm({ ...quoteForm, location: e.target.value })}
-                placeholder="City, specific address or site location"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quote-requirements">{t('modal.quote.requirements')}</Label>
-              <Textarea
-                id="quote-requirements"
-                rows={3}
-                value={quoteForm.requirements}
-                onChange={(e) => setQuoteForm({ ...quoteForm, requirements: e.target.value })}
-                placeholder="Any specific requirements, timeline, or additional details"
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowQuoteModal(false)}>
-                {t('modal.close')}
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  t('modal.quote.submit')
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Booking Modal */}
-      <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t('modal.booking.title')}</DialogTitle>
-            <DialogDescription>
-              Book a service appointment with our engineering team
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleBookingSubmit} className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="booking-name">{t('contact.form.name')} *</Label>
-                <Input
-                  id="booking-name"
-                  value={bookingForm.name}
-                  onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
-                  className={formErrors.name ? 'border-red-500' : ''}
-                />
-                {formErrors.name && <p className="text-sm text-red-500">{formErrors.name}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="booking-email">{t('contact.form.email')} *</Label>
-                <Input
-                  id="booking-email"
-                  type="email"
-                  value={bookingForm.email}
-                  onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })}
-                  className={formErrors.email ? 'border-red-500' : ''}
-                />
-                {formErrors.email && <p className="text-sm text-red-500">{formErrors.email}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="booking-phone">{t('contact.form.phone')}</Label>
-              <Input
-                id="booking-phone"
-                value={bookingForm.phone}
-                onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
-                className={formErrors.phone ? 'border-red-500' : ''}
-              />
-              {formErrors.phone && <p className="text-sm text-red-500">{formErrors.phone}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="booking-equipment">{t('modal.booking.equipment')} *</Label>
-              <Select
-                value={bookingForm.equipment_type}
-                onValueChange={(value) => setBookingForm({ ...bookingForm, equipment_type: value })}
-              >
-                <SelectTrigger className={formErrors.equipment_type ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select equipment type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="generator">Generator</SelectItem>
-                  <SelectItem value="engine">Engine</SelectItem>
-                  <SelectItem value="electrical">Electrical System</SelectItem>
-                  <SelectItem value="other">Other Equipment</SelectItem>
-                </SelectContent>
-              </Select>
-              {formErrors.equipment_type && <p className="text-sm text-red-500">{formErrors.equipment_type}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="booking-brand">{t('modal.booking.brand')}</Label>
-              <Input
-                id="booking-brand"
-                value={bookingForm.brand_model}
-                onChange={(e) => setBookingForm({ ...bookingForm, brand_model: e.target.value })}
-                placeholder="e.g., Lister Petter LPW4, 50kVA Generator"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="booking-issue">{t('modal.booking.issue')}</Label>
-              <Textarea
-                id="booking-issue"
-                rows={3}
-                value={bookingForm.issue_description}
-                onChange={(e) => setBookingForm({ ...bookingForm, issue_description: e.target.value })}
-                placeholder="Describe the issue or service required"
-              />
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="booking-urgency">{t('modal.booking.urgency')}</Label>
-                <Select
-                  value={bookingForm.urgency}
-                  onValueChange={(value) => setBookingForm({ ...bookingForm, urgency: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="emergency">{t('modal.booking.urgency.emergency')}</SelectItem>
-                    <SelectItem value="urgent">{t('modal.booking.urgency.urgent')}</SelectItem>
-                    <SelectItem value="standard">{t('modal.booking.urgency.standard')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="booking-date">{t('modal.booking.date')}</Label>
-                <Input
-                  id="booking-date"
-                  type="date"
-                  value={bookingForm.preferred_date}
-                  onChange={(e) => setBookingForm({ ...bookingForm, preferred_date: e.target.value })}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="booking-time">{t('modal.booking.time')}</Label>
-              <Select
-                value={bookingForm.preferred_time}
-                onValueChange={(value) => setBookingForm({ ...bookingForm, preferred_time: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select preferred time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="morning">Morning (8AM - 12PM)</SelectItem>
-                  <SelectItem value="afternoon">Afternoon (12PM - 4PM)</SelectItem>
-                  <SelectItem value="evening">Evening (4PM - 6PM)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowBookingModal(false)}>
-                {t('modal.close')}
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Booking...
-                  </>
-                ) : (
-                  t('modal.booking.submit')
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Product Detail Modal */}
-      {selectedProduct && (
-        <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{selectedProduct.name}</DialogTitle>
-              <DialogDescription>
-                {selectedProduct.brand} {selectedProduct.model}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6">
-              {selectedProduct.primary_image_url && (
-                <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden">
-                  <img
-                    src={selectedProduct.primary_image_url}
-                    alt={selectedProduct.name}
-                    className="object-cover w-full h-full"
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t('compatibility.model')}
+                  </label>
+                  <input
+                    type="text"
+                    value={compatibilityData.model}
+                    onChange={(e) => setCompatibilityData(prev => ({ ...prev, model: e.target.value }))}
+                    placeholder={t('compatibility.modelPlaceholder')}
+                    className="w-full px-4 py-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   />
-                </div>
-              )}
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Specifications</h4>
-                  <dl className="space-y-2">
-                    {selectedProduct.power_kva && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Power Rating:</dt>
-                        <dd className="font-medium">{selectedProduct.power_kva} kVA ({selectedProduct.power_kw} kW)</dd>
-                      </div>
-                    )}
-                    {selectedProduct.engine_brand && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Engine:</dt>
-                        <dd className="font-medium">{selectedProduct.engine_brand} {selectedProduct.engine_model}</dd>
-                      </div>
-                    )}
-                    {selectedProduct.engine_type && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Engine Type:</dt>
-                        <dd className="font-medium">{selectedProduct.engine_type}</dd>
-                      </div>
-                    )}
-                    {selectedProduct.cylinders && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Cylinders:</dt>
-                        <dd className="font-medium">{selectedProduct.cylinders}</dd>
-                      </div>
-                    )}
-                    {selectedProduct.fuel_type && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Fuel Type:</dt>
-                        <dd className="font-medium">{selectedProduct.fuel_type}</dd>
-                      </div>
-                    )}
-                    {selectedProduct.voltage && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Voltage:</dt>
-                        <dd className="font-medium">{selectedProduct.voltage}</dd>
-                      </div>
-                    )}
-                    {selectedProduct.frequency && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Frequency:</dt>
-                        <dd className="font-medium">{selectedProduct.frequency} Hz</dd>
-                      </div>
-                    )}
-                    {selectedProduct.rpm && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">RPM:</dt>
-                        <dd className="font-medium">{selectedProduct.rpm}</dd>
-                      </div>
-                    )}
-                    {selectedProduct.weight_kg && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Weight:</dt>
-                        <dd className="font-medium">{selectedProduct.weight_kg} kg</dd>
-                      </div>
-                    )}
-                    {selectedProduct.dimensions && (
-                      <div className="flex justify-between">
-                        <dt className="text-gray-600">Dimensions:</dt>
-                        <dd className="font-medium">{selectedProduct.dimensions}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Features</h4>
-                  {selectedProduct.key_features && selectedProduct.key_features.length > 0 ? (
-                    <ul className="space-y-2">
-                      {selectedProduct.key_features.map((feature, index) => (
-                        <li key={index} className="flex items-start">
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                          <span className="text-gray-600">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500">No features listed</p>
-                  )}
-
-                  {selectedProduct.applications && selectedProduct.applications.length > 0 && (
-                    <>
-                      <h4 className="font-semibold text-gray-900 mt-4 mb-3">Applications</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProduct.applications.map((app, index) => (
-                          <Badge key={index} variant="secondary">
-                            {app}
-                          </Badge>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {selectedProduct.full_description && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Description</h4>
-                  <p className="text-gray-600">{selectedProduct.full_description}</p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div>
-                  <p className="text-sm text-gray-600">Stock Status</p>
-                  <p className={`text-lg font-semibold ${selectedProduct.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {selectedProduct.stock_quantity > 0 ? `${selectedProduct.stock_quantity} in stock` : 'Out of stock'}
+                  <p className="text-xs text-gray-500 mt-2">
+                    {t('compatibility.notSure')}
+                    <button
+                      type="button"
+                      onClick={() => window.open('https://wa.me/254718234222', '_blank')}
+                      className="text-blue-600 hover:underline ml-1"
+                    >
+                      {t('compatibility.contactUs')}
+                    </button>
                   </p>
                 </div>
-                {selectedProduct.price && (
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Price</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {selectedProduct.currency} {selectedProduct.price.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1"
-                  onClick={() => {
-                    setQuoteForm(prev => ({ ...prev, product_service: selectedProduct.name }))
-                    setShowQuoteModal(true)
-                    setSelectedProduct(null)
-                  }}
+                {/* Part Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t('compatibility.partType')}
+                  </label>
+                  <select
+                    value={compatibilityData.partType}
+                    onChange={(e) => setCompatibilityData(prev => ({ ...prev, partType: e.target.value }))}
+                    className="w-full px-4 py-4 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  >
+                    <option value="all">{t('compatibility.allParts')}</option>
+                    <option value="Filters">Filters</option>
+                    <option value="Engine Components">Engine Components</option>
+                    <option value="Gaskets & Seals">Gaskets & Seals</option>
+                    <option value="Fuel System">Fuel System</option>
+                    <option value="Electrical">Electrical</option>
+                  </select>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
                 >
-                  {t('products.cta.quote')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleProductWhatsApp(selectedProduct.name)}
+                  {t('compatibility.findParts')}
+                </button>
+              </form>
+
+              {/* Results */}
+              {showCompatibilityResults && (
+                <div className="mt-8 pt-8 border-t border-gray-200">
+                  <p className="text-center text-gray-600 mb-4">
+                    {t('compatibility.showingResults', {
+                      count: compatibleParts.length.toString(),
+                      model: compatibilityData.model
+                    })}
+                  </p>
+                  
+                  {compatibleParts.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {compatibleParts.slice(0, 4).map((part) => (
+                        <div key={part.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl">
+                          {part.primary_image_url ? (
+                            <img
+                              src={part.primary_image_url}
+                              alt={part.name}
+                              className="w-16 h-16 object-cover rounded-lg"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                              <Package className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{part.name}</h4>
+                            <p className="text-sm text-gray-600">{part.brand}</p>
+                            <p className="text-xs text-gray-500">Part#: {part.model || part.part_number}</p>
+                          </div>
+                          <button
+                            onClick={() => addToQuote(part)}
+                            className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No compatible parts found for this model</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== WHY CHOOSE US ==================== */}
+        <section className="py-20 lg:py-32 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl font-bold text-gray-900 text-center mb-16">
+              {t('whyChoose.title')}
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[
+                {
+                  icon: Shield,
+                  color: 'text-blue-600',
+                  title: t('whyChoose.features.genuine.title'),
+                  features: t('whyChoose.features.genuine.desc').split(', ')
+                },
+                {
+                  icon: Zap,
+                  color: 'text-orange-600',
+                  title: t('whyChoose.features.dispatch.title'),
+                  features: t('whyChoose.features.dispatch.desc').split(', ')
+                },
+                {
+                  icon: Headphones,
+                  color: 'text-green-600',
+                  title: t('whyChoose.features.support.title'),
+                  features: t('whyChoose.features.support.desc').split(', ')
+                },
+                {
+                  icon: Award,
+                  color: 'text-blue-600',
+                  title: t('whyChoose.features.warranty.title'),
+                  features: t('whyChoose.features.warranty.desc').split(', ')
+                }
+              ].map((feature, index) => (
+                <div
+                  key={index}
+                  className="backdrop-blur-md bg-gradient-to-br from-white to-gray-50/50 rounded-3xl p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100"
                 >
-                  <Phone className="mr-2 h-4 w-4" />
-                  {t('products.cta.whatsapp')}
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Download className="h-4 w-4" />
-                </Button>
+                  <feature.icon className={`w-16 h-16 ${feature.color} mb-6`} />
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    {feature.title}
+                  </h3>
+                  <ul className="space-y-2">
+                    {feature.features.map((item, i) => (
+                      <li key={i} className="flex items-start space-x-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                        <span className="text-sm text-gray-600">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== FULL CATALOG ==================== */}
+        <section id="catalog" className="py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl font-bold text-gray-900 mb-8">
+              {t('catalog.title')}
+            </h2>
+            
+            {/* Filter Bar */}
+            <div className="sticky top-16 z-40 backdrop-blur-xl bg-white/90 border-y border-gray-200 px-4 py-4 mb-8">
+              <div className="max-w-7xl mx-auto flex flex-wrap gap-4 items-center">
+                {/* Search */}
+                <div className="flex-1 min-w-[200px]">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={t('catalog.searchPlaceholder')}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                
+                {/* Category Filter */}
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="all">{t('catalog.allCategories')}</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name} ({cat.count})
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Brand Filter */}
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="all">{t('catalog.allBrands')}</option>
+                  {Array.from(new Set(parts.map(p => p.brand))).map((brand) => (
+                    <option key={brand} value={brand}>
+                      {brand}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Stock Filter */}
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="all">{t('catalog.allItems')}</option>
+                  <option value="inStock">{t('catalog.inStockOnly')}</option>
+                  <option value="availableSoon">{t('catalog.availableSoon')}</option>
+                </select>
+                
+                {/* Sort */}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="relevance">{t('catalog.sortBy')} {t('catalog.relevance')}</option>
+                  <option value="priceLow">{t('catalog.priceLow')}</option>
+                  <option value="priceHigh">{t('catalog.priceHigh')}</option>
+                  <option value="nameAZ">{t('catalog.nameAZ')}</option>
+                  <option value="newest">{t('catalog.newest')}</option>
+                </select>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
-  )
-}
+            
+            {/* Parts Grid */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 rounded-3xl h-48 mb-4" />
+                    <div className="h-4 bg-gray-200 rounded mb-2" />
+                    <div className="h-3 bg-gray-200 rounded w-3/4" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredParts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {currentParts.map((part) => {
+                    const stockStatus = getStockStatus(part);
+                    return (
+                      <div
+                        key={part.id}
+                        className="backdrop-blur-md bg-white/90 rounded-2xl shadow-md hover:shadow-xl transition-shadow overflow-hidden"
+                      >
+                        {/* Image */}
+                        <div className="relative h-48 bg-gray-100">
+                          {part.primary_image_url ? (
+                            <img
+                              src={part.primary_image_url}
+                              alt={part.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-12 h-12 text-gray-400" />
+                            </div>
+                          )}
+                          <div className={`absolute top-2 right-2 ${stockStatus.color} text-white text-xs font-semibold px-2 py-1 rounded`}>
+                            {stockStatus.text}
+                          </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="p-4">
+                          <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+                            {part.brand}
+                          </p>
+                          <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">
+                            {part.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 mb-3">
+                            {part.model || part.part_number}
+                          </p>
+                          
+                          <div className="flex items-center justify-between">
+                            <div>
+                              {part.price ? (
+                                <p className="text-lg font-bold text-gray-900">
+                                  KES {part.price.toLocaleString()}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-gray-600">
+                                  {t('featured.contactForPrice')}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => addToQuote(part)}
+                              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-8 pt-8 border-t border-gray-200">
+                    <p className="text-sm text-gray-600">
+                      {t('catalog.showing', {
+                        start: (indexOfFirstPart + 1).toString(),
+                        end: Math.min(indexOfLastPart, filteredParts.length).toString(),
+                        total: filteredParts.length.toString()
+                      })}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-8 h-8 rounded-lg ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-20">
+                <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {t('catalog.noResults')}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {t('catalog.tryAdjusting')}
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCategory('all');
+                    setSelectedBrand('all');
+                    setStockFilter('all');
+                    setSortBy('relevance');
+                  }}
+                  className="text-blue-600 hover:underline"
+                >
+                  {t('catalog.clearFilters')}
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
 
-export default Index
+        {/* ==================== BULK ORDERS & SERVICES ==================== */}
+        <section id="services" className="py-20 bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Bulk Orders */}
+              <div className="backdrop-blur-lg bg-white/10 rounded-3xl p-10">
+                <div className="relative">
+                  <Truck className="w-16 h-16 text-white/40 mb-6" />
+                  <h3 className="text-2xl font-bold mb-4">
+                    {t('bulk.title')}
+                  </h3>
+                  <p className="text-gray-300 mb-6">
+                    {t('bulk.subtitle')}
+                  </p>
+                  <ul className="space-y-3 mb-8">
+                    {((t('bulk.features') as unknown) as string[]).map((feature, index) => (
+                      <li key={index} className="flex items-start space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-200">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => setShowQuoteModal(true)}
+                    className="border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white hover:text-gray-900 transition-colors"
+                  >
+                    {t('bulk.cta')}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Parts Services */}
+              <div className="backdrop-blur-lg bg-white/10 rounded-3xl p-10">
+                <div className="relative">
+                  <Search className="w-16 h-16 text-white/40 mb-6" />
+                  <h3 className="text-2xl font-bold mb-4">
+                    {t('bulk.servicesTitle')}
+                  </h3>
+                  <p className="text-gray-300 mb-6">
+                    {t('bulk.servicesSubtitle')}
+                  </p>
+                  <ul className="space-y-3 mb-8">
+                    {((t('bulk.servicesFeatures') as unknown) as string[]).map((feature, index) => (
+                      <li key={index} className="flex items-start space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-200">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href="https://wa.me/254718234222"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-2 border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white hover:text-gray-900 transition-colors"
+                  >
+                    <MessageCircle size={20} />
+                    <span>{t('bulk.servicesCta')}</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== TESTIMONIALS ==================== */}
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl font-bold text-gray-900 text-center mb-12">
+              {t('testimonials.title')}
+            </h2>
+            
+            <div className="flex overflow-x-auto space-x-6 pb-6 scrollbar-hide">
+              {((t('testimonials.testimonials') as unknown) as Array<{quote: string; author: string; role: string; rating: number}>).map((testimonial, index) => (
+                <div
+                  key={index}
+                  className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg min-w-[300px] lg:min-w-[400px] flex-shrink-0"
+                >
+                  {/* Rating */}
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className="w-5 h-5 fill-yellow-400 text-yellow-400"
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Quote */}
+                  <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                    "{testimonial.quote}"
+                  </p>
+                  
+                  {/* Author */}
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xl">
+                      {testimonial.author.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {testimonial.author}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {testimonial.role}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== QUOTE REQUEST MODAL ==================== */}
+        <AnimatePresence>
+          {showQuoteModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 overflow-y-auto"
+            >
+              <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center">
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setShowQuoteModal(false)}
+                />
+                
+                {/* Modal */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                >
+                  <div className="p-8">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                        <h2 className="text-3xl font-bold text-gray-900">
+                          {t('quote.title')}
+                        </h2>
+                        <p className="text-gray-600 mt-2">
+                          {t('quote.subtitle')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowQuoteModal(false)}
+                        className="p-2 hover:bg-gray-100 rounded-xl"
+                      >
+                        <X size={24} />
+                      </button>
+                    </div>
+                    
+                    {/* Quote Items */}
+                    <div className="backdrop-blur-xl bg-white/90 rounded-3xl shadow-2xl p-8 mb-8">
+                      <h3 className="text-xl font-bold text-gray-900 mb-6">
+                        {t('quote.partsInQuote')}
+                      </h3>
+                      
+                      {quoteParts.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>{t('quote.noPartsAdded')}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {quoteParts.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl"
+                            >
+                              {item.primary_image_url ? (
+                                <img
+                                  src={item.primary_image_url}
+                                  alt={item.name}
+                                  className="w-20 h-20 object-cover rounded-lg"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                                  <Package className="w-8 h-8 text-gray-400" />
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900">
+                                  {item.name}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {item.brand}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Part#: {item.part_number}
+                                </p>
+                                {item.price && (
+                                  <p className="text-sm font-medium text-gray-900 mt-1">
+                                    KES {(item.price * item.quantity).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                  className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100"
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                                  className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-center"
+                                  min="1"
+                                />
+                                <button
+                                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                  className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100"
+                                >
+                                  +
+                                </button>
+                                <button
+                                  onClick={() => removeFromQuote(item.id)}
+                                  className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="mt-6 pt-6 border-t border-gray-200 flex justify-between items-center">
+                        <p className="text-lg font-semibold text-gray-900">
+                          {t('quote.totalItems')}: {quoteParts.length}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setShowQuoteModal(false);
+                            document.getElementById('catalog')?.scrollIntoView();
+                          }}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {t('quote.continueBrowsing')}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Quote Form */}
+                    <div className="backdrop-blur-xl bg-white/90 rounded-3xl shadow-2xl p-8">
+                      <h3 className="text-xl font-bold text-gray-900 mb-6">
+                        {t('quote.yourInfo')}
+                      </h3>
+                      
+                      <form onSubmit={handleContactSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Name */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            {t('quote.fullName')}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={contactForm.name}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                          />
+                        </div>
+                        
+                        {/* Email */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            {t('quote.email')}
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            value={contactForm.email}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                          />
+                        </div>
+                        
+                        {/* Phone */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            {t('quote.phone')}
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={contactForm.phone}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
+                            placeholder={t('quote.phonePlaceholder')}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                          />
+                        </div>
+                        
+                        {/* Company */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            {t('quote.company')}
+                          </label>
+                          <input
+                            type="text"
+                            value={contactForm.company}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, company: e.target.value }))}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                          />
+                        </div>
+                        
+                        {/* Delivery Location */}
+                        <div className="lg:col-span-2">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            {t('quote.delivery')}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={contactForm.subject}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
+                            placeholder={t('quote.deliveryPlaceholder')}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                          />
+                        </div>
+                        
+                        {/* Additional Notes */}
+                        <div className="lg:col-span-2">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            {t('quote.notes')}
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={contactForm.message}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
+                            placeholder={t('quote.notesPlaceholder')}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
+                          />
+                        </div>
+                        
+                        {/* Submit Button */}
+                        <div className="lg:col-span-2">
+                          <button
+                            type="submit"
+                            className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
+                          >
+                            {t('quote.submit')}
+                          </button>
+                          <p className="text-sm text-gray-500 text-center mt-3">
+                            {t('quote.responseTime')}
+                          </p>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ==================== CONTACT & SUPPORT ==================== */}
+        <section id="contact" className="py-20 lg:py-32 bg-gradient-to-br from-blue-50 to-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl font-bold text-gray-900 text-center mb-12">
+              {t('contact.title')}
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+              {/* WhatsApp */}
+              <div className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg text-center">
+                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle size={32} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {t('contact.whatsapp.title')}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {t('contact.whatsapp.desc')}
+                </p>
+                <a
+                  href="https://wa.me/254718234222?text=Hello%20Wings%20Engineering,%20I%20need%20spare%20parts%20for..."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-600 transition-colors"
+                >
+                  <MessageCircle size={20} />
+                  {t('contact.whatsapp.cta')}
+                </a>
+              </div>
+              
+              {/* Phone */}
+              <div className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg text-center">
+                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Phone size={32} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {t('contact.phone.title')}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {t('contact.phone.desc')}
+                </p>
+                <a
+                  href="tel:+254718234222"
+                  className="inline-block text-2xl font-bold text-blue-600 hover:text-blue-700 mb-2"
+                >
+                  {t('contact.phone.cta')}
+                </a>
+                <p className="text-sm text-gray-500">
+                  {t('contact.phone.hours')}
+                </p>
+              </div>
+              
+              {/* Email */}
+              <div className="backdrop-blur-xl bg-white rounded-3xl p-8 shadow-lg text-center">
+                <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mail size={32} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {t('contact.email.title')}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {t('contact.email.desc')}
+                </p>
+                <a
+                  href="mailto:parts@wingsengineeringservices.com"
+                  className="inline-block text-lg font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  {t('contact.email.cta')}
+                </a>
+              </div>
+            </div>
+            
+            {/* Location & Service Areas */}
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 text-gray-600 mb-2">
+                <MapPin size={16} />
+                <span>{t('contact.address')}</span>
+              </div>
+              <p className="text-gray-600">
+                {t('contact.serviceAreas')}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== FAQ ==================== */}
+        <section className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl font-bold text-gray-900 text-center mb-12">
+              {t('faq.title')}
+            </h2>
+            
+            <div className="max-w-3xl mx-auto space-y-4">
+              {((t('faq.questions') as unknown) as Array<{q: string; a: string}>).map((faq, index) => (
+                <div
+                  key={index}
+                  className="backdrop-blur-xl bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100"
+                >
+                  <button
+                    onClick={() => setActiveFAQ(activeFAQ === index ? null : index)}
+                    className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="font-semibold text-gray-900 pr-4">
+                      {faq.q}
+                    </span>
+                    <ChevronDown
+                      size={24}
+                      className={`text-gray-400 transition-transform ${
+                        activeFAQ === index ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  {activeFAQ === index && (
+                    <div className="px-6 pb-5 text-gray-600 leading-relaxed">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== FOOTER ==================== */}
+        <footer className="bg-gray-900 text-white py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+              {/* Company Info */}
+              <div>
+                <div className="flex items-center space-x-2 mb-4">
+                  <Cog className="w-8 h-8 text-blue-400" />
+                  <span className="text-xl font-bold">Wings Engineering</span>
+                </div>
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  {t('footer.companyDesc')}
+                </p>
+                <div className="flex gap-4">
+                  <a
+                    href="#"
+                    className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                  >
+                    <Facebook size={20} />
+                  </a>
+                  <a
+                    href="#"
+                    className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                  >
+                    <Instagram size={20} />
+                  </a>
+                  <a
+                    href="#"
+                    className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                  >
+                    <Linkedin size={20} />
+                  </a>
+                </div>
+              </div>
+              
+              {/* Shop Parts */}
+              <div>
+                <h4 className="font-semibold mb-4">{t('footer.shop')}</h4>
+                <ul className="space-y-2 text-gray-400">
+                  {((t('footer.categories') as unknown) as string[]).map((category, index) => (
+                    <li key={index}>
+                      <a
+                        href="#"
+                        className="hover:text-white transition-colors"
+                      >
+                        {category}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              {/* Company */}
+              <div>
+                <h4 className="font-semibold mb-4">{t('footer.company')}</h4>
+                <ul className="space-y-2 text-gray-400">
+                  {((t('footer.companyLinks') as unknown) as string[]).map((link, index) => (
+                    <li key={index}>
+                      <a
+                        href="#"
+                        className="hover:text-white transition-colors"
+                      >
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              {/* Support & Legal */}
+              <div>
+                <h4 className="font-semibold mb-4">{t('footer.support')}</h4>
+                <ul className="space-y-2 text-gray-400 mb-6">
+                  {((t('footer.supportLinks') as unknown) as string[]).map((link, index) => (
+                    <li key={index}>
+                      <a
+                        href="#"
+                        className="hover:text-white transition-colors"
+                      >
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                <h4 className="font-semibold mb-4 mt-8">{t('footer.legal')}</h4>
+                <ul className="space-y-2 text-gray-400">
+                  {((t('footer.legalLinks') as unknown) as string[]).map((link, index) => (
+                    <li key={index}>
+                      <a
+                        href="#"
+                        className="hover:text-white transition-colors"
+                      >
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            {/* Bottom Bar */}
+            <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between">
+              <p className="text-gray-400 text-sm">
+                {t('footer.copyright')}
+              </p>
+              <div className="flex items-center space-x-6 mt-4 md:mt-0">
+                <button
+                  onClick={toggleLanguage}
+                  className="text-gray-400 hover:text-white text-sm"
+                >
+                  {language === 'en' ? 'English' : 'Kiswahili'}
+                </button>
+                <a
+                  href="https://wa.me/254718234222"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white text-sm"
+                >
+                  WhatsApp Support
+                </a>
+                <span className="text-gray-400 text-sm">
+                  {t('footer.builtWith')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </footer>
+
+        {/* ==================== WHATSAPP BUTTON ==================== */}
+        <a
+          href="https://wa.me/254718234222"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 bg-green-500 text-white p-4 rounded-full shadow-2xl hover:bg-green-600 transition-colors z-40 animate-pulse"
+        >
+          <MessageCircle size={24} />
+        </a>
+
+        {/* ==================== SEARCH MODAL ==================== */}
+        <AnimatePresence>
+          {showSearchModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50"
+            >
+              <div className="flex items-center justify-center min-h-screen px-4">
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setShowSearchModal(false)}
+                />
+                
+                {/* Modal */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="relative backdrop-blur-xl bg-white/95 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+                >
+                  <div className="p-6">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        autoFocus
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder={t('hero.searchPlaceholder')}
+                        className="w-full pl-12 pr-4 py-4 text-lg border-0 focus:ring-0 bg-transparent"
+                      />
+                      <button
+                        onClick={() => setShowSearchModal(false)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-lg"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    
+                    {/* Search Results */}
+                    {searchTerm && (
+                      <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                        {filteredParts.slice(0, 10).map((part) => (
+                          <button
+                            key={part.id}
+                            onClick={() => {
+                              addToQuote(part);
+                              setShowSearchModal(false);
+                            }}
+                            className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 rounded-xl text-left"
+                          >
+                            {part.primary_image_url ? (
+                              <img
+                                src={part.primary_image_url}
+                                alt={part.name}
+                                className="w-12 h-12 object-cover rounded-lg"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Package className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">
+                                {part.name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {part.brand} • {part.model || part.part_number}
+                              </p>
+                            </div>
+                            {part.price && (
+                              <span className="font-semibold text-gray-900">
+                                KES {part.price.toLocaleString()}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </LanguageProvider>
+  );
+};
+
+export default Index;
