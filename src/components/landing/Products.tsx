@@ -1,399 +1,610 @@
-// src/components/landing/Products.tsx
-import { useState, useEffect } from "react";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Package, Search, Filter } from "lucide-react";
-import { createClient } from '@supabase/supabase-js';
+// src/contexts/LanguageContext.tsx
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+type Language = 'en' | 'sw';
 
-// Define the Part type
-interface Part {
-  id: string;
-  name: string;
-  brand: string;
-  model: string;
-  part_number?: string;
-  category: string;
-  subcategory: string;
-  price?: number;
-  currency: string;
-  stock_quantity: number;
-  lead_time_days?: number;
-  short_description?: string;
-  full_description?: string;
-  primary_image_url?: string;
-  key_features: string[];
-  applications: string[];
-  compatible_with: string[];
-  created_at: string;
-  updated_at: string;
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
 }
 
-const Products = () => {
-  const { language, t } = useLanguage();
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [parts, setParts] = useState<Part[]>([]);
-  const [filteredParts, setFilteredParts] = useState<Part[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categories, setCategories] = useState<Array<{
-    id: string;
-    name: string;
-    nameSwahili: string;
-    count: number;
-  }>>([]);
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-  // Fetch parts from Supabase
+const translations = {
+  en: {
+    // Navigation
+    'nav.home': 'Home',
+    'nav.products': 'Products',
+    'nav.services': 'Services',
+    'nav.portfolio': 'Portfolio',
+    'nav.contact': 'Contact',
+    'nav.language': 'Language',
+    
+    // Hero
+    'hero.headline': 'Wings Engineering Services Ltd – Reliable Mechanical & Electrical Engineering in Thika',
+    'hero.subheadline': 'Generators • Engines • Spare Parts • Installation • Maintenance',
+    'hero.description': 'Your trusted partner for generators, engines, and industrial power solutions across Kenya.',
+    'hero.cta1': 'Get a Quote',
+    'hero.cta2': 'Call +254 718 234 222',
+    'hero.stat1': '15+',
+    'hero.stat1Label': 'Years Experience',
+    'hero.stat2': '500+',
+    'hero.stat2Label': 'Projects Completed',
+    'hero.stat3': '24/7',
+    'hero.stat3Label': 'Emergency Support',
+    'hero.stat4': '100%',
+    'hero.stat4Label': 'Genuine Parts',
+    
+    // Partners
+    'partners.title': 'Trusted by Leading Organizations',
+    
+    // Categories
+    'categories.title': 'Shop by Category',
+    'categories.subtitle': 'Find exactly what you need',
+    'categories.filters': 'Filters',
+    'categories.engineComponents': 'Engine Components',
+    'categories.gasketsSeals': 'Gaskets & Seals',
+    'categories.fuelSystem': 'Fuel System',
+    'categories.coolingSystem': 'Cooling System',
+    'categories.electrical': 'Electrical',
+    'categories.beltsHoses': 'Belts & Hoses',
+    'categories.fastenersHardware': 'Fasteners & Hardware',
+    'categories.partsCount': '{count}+ parts',
+    
+    // Products
+    'products.title': 'Popular Spare Parts',
+    'products.subtitle': 'In stock and ready to ship',
+    'products.searchPlaceholder': 'Search by part name, number, or engine model...',
+    'products.filterAll': 'All Parts',
+    'products.filterFilters': 'Filters',
+    'products.filterGasketsSeals': 'Gaskets & Seals',
+    'products.filterBearings': 'Bearings',
+    'products.filterBeltsHoses': 'Belts & Hoses',
+    'products.filterElectrical': 'Electrical',
+    'products.filterFuelSystem': 'Fuel System',
+    'products.filterCoolingSystem': 'Cooling System',
+    'products.filterEngineParts': 'Engine Parts',
+    'products.inStock': 'In Stock',
+    'products.lowStock': 'Low Stock',
+    'products.outOfStock': 'Out of Stock',
+    'products.availableSoon': 'Available Soon',
+    'products.requestQuote': 'Request Quote',
+    'products.viewAll': 'View All Parts',
+    'products.contactForPrice': 'Contact for price',
+    'products.partNumber': 'Part #',
+    'products.details': 'Details',
+    
+    // Product Descriptions
+    'products.desc.oilFilter': 'Genuine Lister Petter oil filter for LPW/LPWS series engines. High-quality filtration for optimal engine protection.',
+    'products.desc.fuelFilter': 'Genuine fuel filter element for Lister Petter engines. Removes water and contaminants from diesel fuel.',
+    'products.desc.airFilter': 'Heavy-duty air filter for dusty operating environments. Extended service life with high dust-holding capacity.',
+    'products.desc.cylinderHeadGasket': 'Complete cylinder head gasket set for 3-cylinder Lister Petter engines. Includes all seals and O-rings.',
+    'products.desc.mainBearing': 'Standard size main bearing set for 4-cylinder Lister Petter engines. Precision-engineered for optimal fit.',
+    'products.desc.connectingRodBearing': 'Connecting rod bearing set for Lister Petter engines. High-performance bearings for reliable operation.',
+    'products.desc.alternatorBelt': 'Heavy-duty alternator V-belt for Lister Petter engines. Oil and heat resistant for long service life.',
+    'products.desc.radiatorHose': 'Complete radiator hose kit including upper, lower, and bypass hoses. Silicone reinforced for durability.',
+    
+    // Compatibility Checker
+    'compatibility.title': 'Find Parts for Your Engine',
+    'compatibility.subtitle': 'Select your engine model to see compatible parts',
+    'compatibility.engineBrand': 'Engine Brand',
+    'compatibility.selectBrand': 'Select Brand...',
+    'compatibility.engineModel': 'Engine Model',
+    'compatibility.engineModelPlaceholder': 'e.g., LPW2, LPW3, LPW4',
+    'compatibility.engineModelHelp': 'Not sure? Check the engine nameplate or contact us',
+    'compatibility.partType': 'Part Type (Optional)',
+    'compatibility.allParts': 'All Parts',
+    'compatibility.findParts': 'Find Compatible Parts',
+    'compatibility.showingResults': 'Showing {count} parts compatible with {model}',
+    'compatibility.noResults': 'No compatible parts found for this model',
+    'compatibility.brandListerPetter': 'Lister Petter',
+    'compatibility.brandPerkins': 'Perkins',
+    'compatibility.brandCAT': 'CAT',
+    'compatibility.brandCummins': 'Cummins',
+    'compatibility.brandOther': 'Other',
+    
+    // Why Choose Us
+    'whyUs.title': 'Why Choose Wings Engineering',
+    'whyUs.subtitle': 'Trusted by industrial clients across East Africa',
+    'whyUs.local.title': 'Local Thika Team',
+    'whyUs.local.description': 'Hands-on technical experience with rapid on-site response',
+    'whyUs.verified.title': 'Verified Legal Presence',
+    'whyUs.verified.description': 'Company listings and court record transparency',
+    'whyUs.genuine.title': 'Genuine Spare Parts',
+    'whyUs.genuine.description': 'Lister Petter specialist - OEM parts only',
+    'whyUs.support.title': '24/7 Support',
+    'whyUs.support.description': 'Emergency breakdown response and preventative maintenance packages',
+    
+    // Catalog
+    'catalog.title': 'Complete Spare Parts Catalog',
+    'catalog.searchPlaceholder': 'Search parts...',
+    'catalog.allCategories': 'All Categories',
+    'catalog.allBrands': 'All Brands',
+    'catalog.allItems': 'All Items',
+    'catalog.sortByRelevance': 'Sort by: Relevance',
+    'catalog.sortByPriceLow': 'Price: Low to High',
+    'catalog.sortByPriceHigh': 'Price: High to Low',
+    'catalog.sortByNameAZ': 'Name: A-Z',
+    'catalog.sortByNewest': 'Newest First',
+    'catalog.noPartsFound': 'No parts found',
+    'catalog.tryAdjusting': 'Try adjusting your filters or search terms',
+    'catalog.clearFilters': 'Clear all filters',
+    'catalog.showingParts': 'Showing {start}-{end} of {total} parts',
+    'catalog.inStockOnly': 'In Stock Only',
+    'catalog.availableSoon': 'Available Soon',
+    
+    // Bulk Orders
+    'bulkOrders.title': 'Bulk Orders & Fleet Accounts',
+    'bulkOrders.description': 'Volume discounts for orders of 10+ parts',
+    'bulkOrders.benefit1': 'Dedicated account manager for fleet operators',
+    'bulkOrders.benefit2': 'Custom pricing for long-term contracts',
+    'bulkOrders.benefit3': 'Priority shipping and handling',
+    'bulkOrders.cta': 'Request Bulk Quote',
+    
+    // Parts Sourcing
+    'partsSourcing.title': 'Parts Identification & Sourcing',
+    'partsSourcing.description': 'Can\'t find your part? We can help',
+    'partsSourcing.benefit1': 'Send us a photo for identification',
+    'partsSourcing.benefit2': 'We source rare and discontinued parts',
+    'partsSourcing.benefit3': 'Cross-reference service for aftermarket parts',
+    'partsSourcing.cta': 'Get Help Finding Parts',
+    
+    // Testimonials
+    'testimonials.title': 'What Our Clients Say',
+    'testimonials.subtitle': 'Hear from our satisfied clients across East Africa',
+    'testimonials.testimonial1': 'Wings Engineering provided exceptional service during our emergency generator failure. Their technician arrived within 2 hours and had us back online the same day. Highly professional and reliable!',
+    'testimonials.testimonial1Name': 'John Kamau',
+    'testimonials.testimonial1Role': 'Facilities Manager, Thika Manufacturing Ltd',
+    'testimonials.testimonial2': 'We have been sourcing our Lister Petter spare parts from Wings Engineering for over 5 years. Their parts are always genuine, prices are competitive, and delivery is prompt. Excellent partner!',
+    'testimonials.testimonial2Name': 'Mary Wanjiku',
+    'testimonials.testimonial2Role': 'Procurement Officer, Nairobi Industrial Supplies',
+    'testimonials.testimonial3': 'The installation team was professional and thorough. They completed our 200kVA generator installation ahead of schedule and provided comprehensive training for our staff. Highly recommend!',
+    'testimonials.testimonial3Name': 'Peter Ochieng',
+    'testimonials.testimonial3Role': 'Technical Director, Mombasa Port Authority',
+    
+    // Contact
+    'contact.title': 'Get in Touch',
+    'contact.subtitle': 'Get in touch with our team for quotes, service bookings, or technical support',
+    'contact.form.submit': 'Send Inquiry',
+    'contact.form.name': 'Name',
+    'contact.form.email': 'Email',
+    'contact.form.phone': 'Phone',
+    'contact.form.company': 'Company',
+    'contact.form.requestType': 'Request Type',
+    'contact.form.requestTypeQuote': 'Quote',
+    'contact.form.requestTypeService': 'Service Booking',
+    'contact.form.requestTypeParts': 'Parts Inquiry',
+    'contact.form.requestTypeGeneral': 'General',
+    'contact.form.product': 'Product/Service Interest',
+    'contact.form.message': 'Message',
+    'contact.form.deliveryLocation': 'Delivery Location',
+    'contact.form.deliveryPlaceholder': 'City, Area, or Full Address',
+    'contact.form.additionalNotes': 'Additional Notes',
+    'contact.form.notesPlaceholder': 'Any specific requirements, urgency, or questions...',
+    'contact.info.title': 'Contact Information',
+    'contact.info.address': 'P.O. Box 4529-01002 Madaraka, Thika, Kenya',
+    'contact.info.phone': '+254 718 234 222',
+    'contact.info.email': 'sales@wingsengineeringservices.com',
+    'contact.info.hours': 'Mon-Fri: 8AM-6PM, Sat: 9AM-2PM',
+    'contact.info.whatsapp': 'Chat on WhatsApp',
+    'contact.success': 'Thank you! We\'ll respond within 2 hours.',
+    'contact.error': 'Please fill in all required fields correctly.',
+    
+    // Quote Modal
+    'quote.title': 'Request a Quote',
+    'quote.description': 'Add parts to your quote request and we\'ll respond within 2 hours',
+    'quote.partsTitle': 'Parts in Your Quote',
+    'quote.noParts': 'No parts added yet. Browse our catalog and add parts to your quote.',
+    'quote.totalItems': 'Total Items: {count}',
+    'quote.continueBrowsing': 'Continue browsing parts',
+    'quote.yourInformation': 'Your Information',
+    'quote.fullName': 'Full Name',
+    'quote.email': 'Email Address',
+    'quote.phone': 'Phone Number',
+    'quote.phonePlaceholder': '+2547XXXXXXXX',
+    'quote.company': 'Company Name',
+    'quote.submit': 'Submit Quote Request',
+    'quote.responseTime': 'We\'ll respond with a detailed quote within 2 hours (business hours)',
+    
+    // Footer
+    'footer.tagline': 'Powering East Africa\'s Industry',
+    'footer.description': 'Your trusted partner for generators, engines, and industrial power solutions across Kenya.',
+    'footer.quickLinks': 'Quick Links',
+    'footer.contact': 'Contact',
+    'footer.copyright': '© 2026 Wings Engineering Services Ltd. All rights reserved.',
+    'footer.madeIn': 'Built with ❤️ in Kenya',
+    
+    // Search
+    'search.title': 'Search Parts',
+    'search.close': 'Close',
+    
+    // General
+    'general.close': 'Close',
+    'general.loading': 'Loading...',
+    'general.error': 'Error',
+    'general.success': 'Success',
+    'general.yes': 'Yes',
+    'general.no': 'No',
+    'general.cancel': 'Cancel',
+    'general.save': 'Save',
+    'general.delete': 'Delete',
+    'general.edit': 'Edit',
+    'general.view': 'View',
+    'general.add': 'Add',
+    'general.remove': 'Remove',
+    'general.quantity': 'Quantity',
+    'general.price': 'Price',
+    'general.total': 'Total',
+    'general.subtotal': 'Subtotal',
+    'general.tax': 'Tax',
+    'general.discount': 'Discount',
+    'general.shipping': 'Shipping',
+    'general.free': 'Free',
+    'general.paid': 'Paid',
+    'general.pending': 'Pending',
+    'general.completed': 'Completed',
+    'general.failed': 'Failed',
+    'general.refunded': 'Refunded',
+    'general.currencyKES': 'KES',
+    'general.currencyUSD': 'USD',
+    'general.days': 'days',
+    'general.hours': 'hours',
+    'general.minutes': 'minutes',
+    'general.seconds': 'seconds',
+    'general.today': 'Today',
+    'general.yesterday': 'Yesterday',
+    'general.tomorrow': 'Tomorrow',
+    'general.thisWeek': 'This Week',
+    'general.lastWeek': 'Last Week',
+    'general.nextWeek': 'Next Week',
+    'general.thisMonth': 'This Month',
+    'general.lastMonth': 'Last Month',
+    'general.nextMonth': 'Next Month',
+    'general.thisYear': 'This Year',
+    'general.lastYear': 'Last Year',
+    'general.nextYear': 'Next Year',
+    'general.january': 'January',
+    'general.february': 'February',
+    'general.march': 'March',
+    'general.april': 'April',
+    'general.may': 'May',
+    'general.june': 'June',
+    'general.july': 'July',
+    'general.august': 'August',
+    'general.september': 'September',
+    'general.october': 'October',
+    'general.november': 'November',
+    'general.december': 'December',
+    'general.monday': 'Monday',
+    'general.tuesday': 'Tuesday',
+    'general.wednesday': 'Wednesday',
+    'general.thursday': 'Thursday',
+    'general.friday': 'Friday',
+    'general.saturday': 'Saturday',
+    'general.sunday': 'Sunday',
+  },
+  sw: {
+    // Navigation
+    'nav.home': 'Nyumbani',
+    'nav.products': 'Bidhaa',
+    'nav.services': 'Huduma',
+    'nav.portfolio': 'Miradi',
+    'nav.contact': 'Wasiliana',
+    'nav.language': 'Lugha',
+    
+    // Hero
+    'hero.headline': 'Wings Engineering Services Ltd – Huduma za Uhandisi wa Umeme na Mitambo Thika',
+    'hero.subheadline': 'Jenereta • Injini • Vipuri • Usakinishaji • Matengenezo',
+    'hero.description': 'Mshirika wako wa kuaminika kwa jenereta, injini, na ufumbuzi wa nguvu ya viwanda nchini Kenya.',
+    'hero.cta1': 'Pata Nukuu',
+    'hero.cta2': 'Piga +254 718 234 222',
+    'hero.stat1': '15+',
+    'hero.stat1Label': 'Miaka ya Uzoefu',
+    'hero.stat2': '500+',
+    'hero.stat2Label': 'Miradi Imekamilika',
+    'hero.stat3': '24/7',
+    'hero.stat3Label': 'Usaidizi wa Dharura',
+    'hero.stat4': '100%',
+    'hero.stat4Label': 'Vipuri Halisi',
+    
+    // Partners
+    'partners.title': 'Tunaminika na Mashirika Makubwa',
+    
+    // Categories
+    'categories.title': 'Nunua kwa Aina',
+    'categories.subtitle': 'Pata hasa unachohitaji',
+    'categories.filters': 'Vichujio',
+    'categories.engineComponents': 'Vifaa vya Injini',
+    'categories.gasketsSeals': 'Gasketi na Mihuri',
+    'categories.fuelSystem': 'Mfumo wa Mafuta',
+    'categories.coolingSystem': 'Mfumo wa Kupoa',
+    'categories.electrical': 'Umeme',
+    'categories.beltsHoses': 'Mikanda na Mijeledi',
+    'categories.fastenersHardware': 'Vifungo na Vifaa',
+    'categories.partsCount': 'Vipuri {count}+',
+    
+    // Products
+    'products.title': 'Vipuri Maarufu',
+    'products.subtitle': 'Vinapatikana na tayari kusafirishwa',
+    'products.searchPlaceholder': 'Tafuta kwa jina la kipuri, nambari, au modeli ya injini...',
+    'products.filterAll': 'Vipuri Vyote',
+    'products.filterFilters': 'Vichujio',
+    'products.filterGasketsSeals': 'Gasketi na Mihuri',
+    'products.filterBearings': 'Bearings',
+    'products.filterBeltsHoses': 'Mikanda na Mijeledi',
+    'products.filterElectrical': 'Umeme',
+    'products.filterFuelSystem': 'Mfumo wa Mafuta',
+    'products.filterCoolingSystem': 'Mfumo wa Kupoa',
+    'products.filterEngineParts': 'Vifaa vya Injini',
+    'products.inStock': 'Inapatikana',
+    'products.lowStock': 'Inakwisha',
+    'products.outOfStock': 'Haipatikani',
+    'products.availableSoon': 'Inapatikana Hivi Karibuni',
+    'products.requestQuote': 'Omba Nukuu',
+    'products.viewAll': 'Angalia Vipuri Vyote',
+    'products.contactForPrice': 'Wasiliana kwa bei',
+    'products.partNumber': 'Nambari ya Kipuri',
+    'products.details': 'Maelezo',
+    
+    // Product Descriptions
+    'products.desc.oilFilter': 'Kichujio cha mafuta halisi cha Lister Petter kwa injini za mfululizo wa LPW/LPWS. Uchujaji wa hali ya juu kwa ulinzi bora wa injini.',
+    'products.desc.fuelFilter': 'Kipengee cha kichujio cha mafuta halisi kwa injini za Lister Petter. Inaondoa maji na uchafu kutoka kwa mafuta ya dizeli.',
+    'products.desc.airFilter': 'Kichujio cha hewa chenye nguvu kwa mazingira ya uendeshaji yenye vumbi. Maisha marefu ya huduma na uwezo wa juu wa kushikilia vumbi.',
+    'products.desc.cylinderHeadGasket': 'Seti kamili ya gasketi ya kichwa cha silinda kwa injini za Lister Petter zenye silinda 3. Inajumuisha mihuri yote na O-rings.',
+    'products.desc.mainBearing': 'Seti ya kuzaa kuu ya saizi ya kawaida kwa injini za Lister Petter zenye silinda 4. Imebuniwa kwa usahihi kwa kufaa bora.',
+    'products.desc.connectingRodBearing': 'Seti ya kuzaa ya fimbo ya kuunganisha kwa injini za Lister Petter. Bearings za hali ya juu kwa uendeshaji unaoweza kutegemewa.',
+    'products.desc.alternatorBelt': 'Ukanda wa V wa alternator wenye nguvu kwa injini za Lister Petter. Upinzani wa mafuta na joto kwa maisha marefu ya huduma.',
+    'products.desc.radiatorHose': 'Seti kamili ya bomba la radiota ikijumuisha bomba la juu, la chini, na la kupita. Imerejeshwa kwa silikoni kwa uimara.',
+    
+    // Compatibility Checker
+    'compatibility.title': 'Tafuta Vipuri kwa Injini Yako',
+    'compatibility.subtitle': 'Chagua modeli ya injini yako kuona vipuri vinavyofaa',
+    'compatibility.engineBrand': 'Brandi ya Injini',
+    'compatibility.selectBrand': 'Chagua Brandi...',
+    'compatibility.engineModel': 'Modeli ya Injini',
+    'compatibility.engineModelPlaceholder': 'mf., LPW2, LPW3, LPW4',
+    'compatibility.engineModelHelp': 'Sijui? Angalia sahani ya jina la injini au wasiliana nasi',
+    'compatibility.partType': 'Aina ya Kipuri (Hiari)',
+    'compatibility.allParts': 'Vipuri Vyote',
+    'compatibility.findParts': 'Tafuta Vipuri Vinavyofaa',
+    'compatibility.showingResults': 'Inaonyesha vipuri {count} vinavyofaa na {model}',
+    'compatibility.noResults': 'Hakuna vipuri vinavyofaa kwa modeli hii',
+    'compatibility.brandListerPetter': 'Lister Petter',
+    'compatibility.brandPerkins': 'Perkins',
+    'compatibility.brandCAT': 'CAT',
+    'compatibility.brandCummins': 'Cummins',
+    'compatibility.brandOther': 'Nyingine',
+    
+    // Why Choose Us
+    'whyUs.title': 'Kwa Nini Kuchagua Wings Engineering',
+    'whyUs.subtitle': 'Tunaminika na wateja wa viwanda Afrika Mashariki',
+    'whyUs.local.title': 'Timu ya Ndani ya Thika',
+    'whyUs.local.description': 'Uzoefu wa kiufundi wa vitendo na jibu la haraka kwenye tovuti',
+    'whyUs.verified.title': 'Uwepo wa Kisheria Uliohakikiwa',
+    'whyUs.verified.description': 'Orodha ya kampuni na uwazi wa rekodi za mahakama',
+    'whyUs.genuine.title': 'Vipuri Halisi',
+    'whyUs.genuine.description': 'Mtaalamu wa Lister Petter - Vipuri vya OEM pekee',
+    'whyUs.support.title': 'Usaidizi 24/7',
+    'whyUs.support.description': 'Jibu la dharura la kuvunjika na vifurushi vya matengenezo ya kuzuia',
+    
+    // Catalog
+    'catalog.title': 'Katalogi Kamili ya Vipuri',
+    'catalog.searchPlaceholder': 'Tafuta vipuri...',
+    'catalog.allCategories': 'Aina Zote',
+    'catalog.allBrands': 'Brandi Zote',
+    'catalog.allItems': 'Vitu Vyote',
+    'catalog.sortByRelevance': 'Panga kwa: Muhimu',
+    'catalog.sortByPriceLow': 'Bei: Chini hadi Juu',
+    'catalog.sortByPriceHigh': 'Bei: Juu hadi Chini',
+    'catalog.sortByNameAZ': 'Jina: A-Z',
+    'catalog.sortByNewest': 'Mpya Zaidi Kwanza',
+    'catalog.noPartsFound': 'Hakuna vipuri vilivyopatikana',
+    'catalog.tryAdjusting': 'Jaribu kurekebisha vichujio vyako au maneno ya utafutaji',
+    'catalog.clearFilters': 'Futa vichujio vyote',
+    'catalog.showingParts': 'Inaonyesha {start}-{end} ya vipuri {total}',
+    'catalog.inStockOnly': 'Vinavyopatikana Pekee',
+    'catalog.availableSoon': 'Inapatikana Hivi Karibuni',
+    
+    // Bulk Orders
+    'bulkOrders.title': 'Maagizo Makubwa na Akaunti za Meli',
+    'bulkOrders.description': 'Ada ya wingi kwa maagizo ya vipuri 10+',
+    'bulkOrders.benefit1': 'Meneja wa akaunti maalum kwa waendeshaji wa meli',
+    'bulkOrders.benefit2': 'Bei maalum kwa mikataba ya muda mrefu',
+    'bulkOrders.benefit3': 'Usafirishaji na usindikaji wa kipaumbele',
+    'bulkOrders.cta': 'Omba Nukuu ya Wingi',
+    
+    // Parts Sourcing
+    'partsSourcing.title': 'Utambulishaji na Utafutaji wa Vipuri',
+    'partsSourcing.description': 'Hauwezi kupata kipuri chako? Tunaweza kusaidia',
+    'partsSourcing.benefit1': 'Tutumie picha kwa utambulishaji',
+    'partsSourcing.benefit2': 'Tunatafuta vipuri nadra na vilivyokoma',
+    'partsSourcing.benefit3': 'Huduma ya kufananisha kwa vipuri vya aftermarket',
+    'partsSourcing.cta': 'Pata Usaidizi wa Kupata Vipuri',
+    
+    // Testimonials
+    'testimonials.title': 'Wateja Wetu Wanasema Nini',
+    'testimonials.subtitle': 'Sikiliza kutoka kwa wateja wetu walioridhika Afrika Mashariki',
+    'testimonials.testimonial1': 'Wings Engineering ilitoa huduma bora wakati wa kushindwa kwa jenereta yetu ya dharura. Mhandisi wao alifika ndani ya masaa 2 na tukarudishwa mtandaoni siku hiyo hiyo. Kitaalamu sana na inaweza kutegemewa!',
+    'testimonials.testimonial1Name': 'John Kamau',
+    'testimonials.testimonial1Role': 'Meneja wa Vifaa, Thika Manufacturing Ltd',
+    'testimonials.testimonial2': 'Tumekuwa tukinunua vipuri vyetu vya Lister Petter kutoka kwa Wings Engineering kwa zaidi ya miaka 5. Vipuri vyake daima ni halisi, bei ni ushindani, na uwasilishaji ni wa haraka. Mshirika bora!',
+    'testimonials.testimonial2Name': 'Mary Wanjiku',
+    'testimonials.testimonial2Role': 'Afisa wa Uunuzi, Nairobi Industrial Supplies',
+    'testimonials.testimonial3': 'Timu ya usakinishaji ilikuwa ya kitaalamu na ya kina. Walikamilisha usakinishaji wetu wa jenereta ya 200kVA kabla ya ratiba na walitoa mafunzo kamili kwa wafanyikazi wetu. Inapendekezwa sana!',
+    'testimonials.testimonial3Name': 'Peter Ochieng',
+    'testimonials.testimonial3Role': 'Mkurugenzi wa Kiufundi, Mombasa Port Authority',
+    
+    // Contact
+    'contact.title': 'Wasiliana Nasi',
+    'contact.subtitle': 'Wasiliana na timu yetu kwa nukuu, huduma za kuhudumia kitabu, au usaidizi wa kiufundi',
+    'contact.form.submit': 'Tuma Ombi',
+    'contact.form.name': 'Jina',
+    'contact.form.email': 'Barua Pepe',
+    'contact.form.phone': 'Simu',
+    'contact.form.company': 'Kampuni',
+    'contact.form.requestType': 'Aina ya Ombi',
+    'contact.form.requestTypeQuote': 'Nukuu',
+    'contact.form.requestTypeService': 'Kuhudumia Kitabu',
+    'contact.form.requestTypeParts': 'Uchunguzi wa Vipuri',
+    'contact.form.requestTypeGeneral': 'Jumla',
+    'contact.form.product': 'Bidhaa/Huduma ya Kupendeza',
+    'contact.form.message': 'Ujumbe',
+    'contact.form.deliveryLocation': 'Mahali Pa Kufikishia',
+    'contact.form.deliveryPlaceholder': 'Jiji, Eneo, au Anwani Kamili',
+    'contact.form.additionalNotes': 'Maelezo Zaidi',
+    'contact.form.notesPlaceholder': 'Mahitaji yoyote maalum, uharaka, au maswali...',
+    'contact.info.title': 'Taarifa za Mawasiliano',
+    'contact.info.address': 'S.L.P 4529-01002 Madaraka, Thika, Kenya',
+    'contact.info.phone': '+254 718 234 222',
+    'contact.info.email': 'sales@wingsengineeringservices.com',
+    'contact.info.hours': 'Jumatatu-Ijumaa: 8AM-6PM, Jumamosi: 9AM-2PM',
+    'contact.info.whatsapp': 'Piga Simu kwa WhatsApp',
+    'contact.success': 'Asante! Tutajibu ndani ya masaa 2.',
+    'contact.error': 'Tafadhali jaza sehemu zote zinazohitajika kwa usahihi.',
+    
+    // Quote Modal
+    'quote.title': 'Omba Nukuu',
+    'quote.description': 'Ongeza vipuri kwenye ombi lako la nukuu na tutajibu ndani ya masaa 2',
+    'quote.partsTitle': 'Vipuri Kwenye Nukuu Yako',
+    'quote.noParts': 'Hakuna vipuri vilivyoongezwa bado. Tembelea katalogi yetu na ongeza vipuri kwenye nukuu yako.',
+    'quote.totalItems': 'Vitu Jumla: {count}',
+    'quote.continueBrowsing': 'Endelea kutembelea vipuri',
+    'quote.yourInformation': 'Taarifa Yako',
+    'quote.fullName': 'Jina Kamili',
+    'quote.email': 'Anwani ya Barua Pepe',
+    'quote.phone': 'Nambari ya Simu',
+    'quote.phonePlaceholder': '+2547XXXXXXXX',
+    'quote.company': 'Jina la Kampuni',
+    'quote.submit': 'Wasilisha Ombi la Nukuu',
+    'quote.responseTime': 'Tutajibu kwa nukuu kamili ndani ya masaa 2 (masaa ya kazi)',
+    
+    // Footer
+    'footer.tagline': 'Kuweka Nguvu ya Viwanda ya Afrika Mashariki',
+    'footer.description': 'Mshirika wako wa kuaminika kwa jenereta, injini, na ufumbuzi wa nguvu ya viwanda nchini Kenya.',
+    'footer.quickLinks': 'Viungo vya Haraka',
+    'footer.contact': 'Mawasiliano',
+    'footer.copyright': '© 2026 Wings Engineering Services Ltd. Haki zote zimehifadhiwa.',
+    'footer.madeIn': 'Imejengwa kwa ❤️ nchini Kenya',
+    
+    // Search
+    'search.title': 'Tafuta Vipuri',
+    'search.close': 'Funga',
+    
+    // General
+    'general.close': 'Funga',
+    'general.loading': 'Inapakia...',
+    'general.error': 'Hitilafu',
+    'general.success': 'Mafanikio',
+    'general.yes': 'Ndio',
+    'general.no': 'Hapana',
+    'general.cancel': 'Ghairi',
+    'general.save': 'Hifadhi',
+    'general.delete': 'Futa',
+    'general.edit': 'Hariri',
+    'general.view': 'Tazama',
+    'general.add': 'Ongeza',
+    'general.remove': 'Ondoa',
+    'general.quantity': 'Kiasi',
+    'general.price': 'Bei',
+    'general.total': 'Jumla',
+    'general.subtotal': 'Jumla Ndogo',
+    'general.tax': 'Kodi',
+    'general.discount': 'Punguzo',
+    'general.shipping': 'Usafirishaji',
+    'general.free': 'Bure',
+    'general.paid': 'Imelipwa',
+    'general.pending': 'Inasubiri',
+    'general.completed': 'Imekamilika',
+    'general.failed': 'Imeshindwa',
+    'general.refunded': 'Imerudishwa',
+    'general.currencyKES': 'KES',
+    'general.currencyUSD': 'USD',
+    'general.days': 'siku',
+    'general.hours': 'masaa',
+    'general.minutes': 'dakika',
+    'general.seconds': 'sekunde',
+    'general.today': 'Leo',
+    'general.yesterday': 'Jana',
+    'general.tomorrow': 'Kesho',
+    'general.thisWeek': 'Wiki Hii',
+    'general.lastWeek': 'Wiki Iliyopita',
+    'general.nextWeek': 'Wiki Inayofuata',
+    'general.thisMonth': 'Mwezi Huu',
+    'general.lastMonth': 'Mwezi Ulopita',
+    'general.nextMonth': 'Mwezi Ujao',
+    'general.thisYear': 'Mwaka Huu',
+    'general.lastYear': 'Mwaka Ulopita',
+    'general.nextYear': 'Mwaka Ujao',
+    'general.january': 'Januari',
+    'general.february': 'Februari',
+    'general.march': 'Machi',
+    'general.april': 'Aprili',
+    'general.may': 'Mei',
+    'general.june': 'Juni',
+    'general.july': 'Julai',
+    'general.august': 'Agosti',
+    'general.september': 'Septemba',
+    'general.october': 'Oktoba',
+    'general.november': 'Novemba',
+    'general.december': 'Desemba',
+    'general.monday': 'Jumatatu',
+    'general.tuesday': 'Jumanne',
+    'general.wednesday': 'Jumatano',
+    'general.thursday': 'Alhamisi',
+    'general.friday': 'Ijumaa',
+    'general.saturday': 'Jumamosi',
+    'general.sunday': 'Jumapili',
+  }
+} as const;
+
+type TranslationKey = keyof typeof translations.en;
+
+export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('wings-language');
+    return (saved as Language) || 'en';
+  });
+
   useEffect(() => {
-    fetchParts();
-  }, []);
+    localStorage.setItem('wings-language', language);
+  }, [language]);
 
-  const fetchParts = async () => {
-    if (!supabase) {
-      console.error("Supabase not configured");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      // Fetch parts from Supabase
-      const { data, error } = await supabase
-        .from('product_catalog')
-        .select('*')
-        .in('category', ['parts', 'spare_parts'])
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (data) {
-        const partsData: Part[] = data.map((part: any) => ({
-          ...part,
-          key_features: part.key_features || [],
-          applications: part.applications || [],
-          compatible_with: part.compatible_with || [],
-          part_number: part.model || part.part_number
-        }));
-        
-        setParts(partsData);
-        setFilteredParts(partsData);
-        
-        // Generate categories from data
-        const categoryMap = new Map();
-        partsData.forEach(part => {
-          const category = part.subcategory || part.category;
-          if (category) {
-            const current = categoryMap.get(category) || 0;
-            categoryMap.set(category, current + 1);
-          }
-        });
-
-        const categoryList = Array.from(categoryMap.entries()).map(([name, count]) => ({
-          id: name.toLowerCase().replace(/\s+/g, '_'),
-          name,
-          nameSwahili: getSwahiliCategory(name),
-          count
-        }));
-
-        setCategories([
-          { id: 'all', name: 'All Parts', nameSwahili: 'Vipuri Vyote', count: partsData.length },
-          ...categoryList
-        ]);
-      }
-    } catch (error) {
-      console.error('Error fetching parts:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getSwahiliCategory = (category: string) => {
-    const translations: Record<string, string> = {
-      'Filters': 'Vichujio',
-      'Engine Components': 'Vifaa vya Injini',
-      'Gaskets & Seals': 'Gasketi na Mihuri',
-      'Fuel System': 'Mfumo wa Mafuta',
-      'Cooling System': 'Mfumo wa Kupoa',
-      'Electrical': 'Umeme',
-      'Belts & Hoses': 'Mikanda na Mijeledi',
-      'Fasteners & Hardware': 'Vifungo na Vifaa'
-    };
-    return translations[category] || category;
-  };
-
-  // Filter parts based on category and search
-  useEffect(() => {
-    let result = [...parts];
-
-    // Apply category filter
-    if (selectedCategory !== "all") {
-      const selectedCat = categories.find(c => c.id === selectedCategory);
-      if (selectedCat) {
-        result = result.filter(part => 
-          (part.subcategory || part.category) === selectedCat.name
-        );
+  const t = (key: string, replacements?: Record<string, string | number>): string => {
+    const keys = key.split('.');
+    let value: any = translations[language];
+    
+    for (const k of keys) {
+      if (value && typeof value === 'object' && k in value) {
+        value = value[k];
+      } else {
+        console.warn(`Translation key "${key}" not found in language "${language}"`);
+        return key;
       }
     }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(part =>
-        part.name.toLowerCase().includes(query) ||
-        part.model.toLowerCase().includes(query) ||
-        part.part_number?.toLowerCase().includes(query) ||
-        part.brand.toLowerCase().includes(query) ||
-        part.compatible_with.some(c => c.toLowerCase().includes(query))
-      );
+    
+    let result = value || key;
+    
+    if (replacements) {
+      Object.entries(replacements).forEach(([placeholder, replacement]) => {
+        result = result.replace(new RegExp(`{${placeholder}}`, 'g'), String(replacement));
+      });
     }
-
-    setFilteredParts(result);
-  }, [selectedCategory, searchQuery, parts, categories]);
-
-  const getStockStatus = (quantity: number, leadTime?: number) => {
-    if (quantity > 10) return { 
-      label: t("products.inStock"), 
-      variant: "default" as const,
-      color: "bg-green-500"
-    };
-    if (quantity > 0) return { 
-      label: `${t("products.lowStock")}: ${quantity}`, 
-      variant: "secondary" as const,
-      color: "bg-yellow-500"
-    };
-    if (leadTime && leadTime <= 10) return { 
-      label: `${t("products.availableSoon")}: ${leadTime} days`, 
-      variant: "outline" as const,
-      color: "bg-blue-500"
-    };
-    return { 
-      label: t("products.outOfStock"), 
-      variant: "destructive" as const,
-      color: "bg-red-500"
-    };
-  };
-
-  // Add to quote function (you need to implement this in parent or context)
-  const addToQuote = (part: Part) => {
-    // This should be implemented in your parent component or a context
-    console.log('Add to quote:', part);
-    // You can use window.dispatchEvent or a context to communicate with parent
-    window.dispatchEvent(new CustomEvent('addToQuote', { detail: part }));
+    
+    return result;
   };
 
   return (
-    <section id="products" className="py-20 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            {t("products.title")}
-          </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            {t("products.subtitle")}
-          </p>
-        </div>
-
-        {/* Search Bar */}
-        <div className="max-w-xl mx-auto mb-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder={language === "en" ? "Search by part name, number, or engine model..." : "Tafuta kwa jina la kipuri, nambari, au modeli ya injini..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-            />
-          </div>
-        </div>
-
-        {/* Category Filter */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category.id)}
-              className="relative"
-            >
-              {language === "en" ? category.name : category.nameSwahili}
-              <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
-                {category.count}
-              </span>
-            </Button>
-          ))}
-        </div>
-
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="aspect-square bg-muted rounded-lg mb-4" />
-                  <div className="h-4 bg-muted rounded w-3/4 mb-2" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="h-3 bg-muted rounded w-full mb-4" />
-                  <div className="h-8 bg-muted rounded" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : filteredParts.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              {language === "en" ? "No parts found" : "Hakuna vipuri vilivyopatikana"}
-            </h3>
-            <p className="text-muted-foreground">
-              {language === "en" 
-                ? "Try adjusting your search or filter criteria"
-                : "Jaribu kubadilisha utafutaji wako au vigezo vya kuchuja"}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Products Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredParts.slice(0, 8).map((part) => {
-                const stockStatus = getStockStatus(part.stock_quantity, part.lead_time_days);
-                return (
-                  <Card
-                    key={part.id}
-                    className="group hover:shadow-lg transition-all duration-300 border-border hover:border-blue-200 dark:hover:border-blue-800"
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/5 transition-colors relative overflow-hidden">
-                        {part.primary_image_url ? (
-                          <img
-                            src={part.primary_image_url}
-                            alt={part.name}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <Package className="h-16 w-16 text-muted-foreground" />
-                        )}
-                        <div className={`absolute top-2 right-2 ${stockStatus.color} text-white text-xs font-semibold px-2 py-1 rounded-full`}>
-                          {stockStatus.label}
-                        </div>
-                      </div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <CardTitle className="text-base line-clamp-2">
-                            {part.name}
-                          </CardTitle>
-                          <CardDescription className="text-sm">
-                            {part.brand} • {part.part_number || part.model}
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                        {part.short_description || part.key_features?.[0] || 'Industrial spare part'}
-                      </p>
-                      <div className="flex items-center justify-between mb-4">
-                        <Badge variant={stockStatus.variant} className={stockStatus.color.replace('bg-', '')}>
-                          {stockStatus.label.split(':')[0]}
-                        </Badge>
-                        {part.price ? (
-                          <span className="font-semibold text-primary">
-                            {part.currency} {part.price.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {language === "en" ? "Contact for price" : "Wasiliana kwa bei"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          className="flex-1"
-                          size="sm"
-                          onClick={() => addToQuote(part)}
-                        >
-                          {t("products.requestQuote")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // View details or compatibility
-                            const message = `Hi, I need more details about ${part.name} (Part #${part.part_number || part.model}) for ${part.compatible_with?.[0] || 'my engine'}`;
-                            window.open(
-                              `https://wa.me/254718234222?text=${encodeURIComponent(message)}`,
-                              "_blank"
-                            );
-                          }}
-                        >
-                          {language === "en" ? "Details" : "Maelezo"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-
-            {/* View All Button */}
-            {filteredParts.length > 8 && (
-              <div className="text-center mt-12">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => {
-                    // Scroll to full catalog section or show more
-                    document.querySelector("#full-catalog")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                >
-                  {t("products.viewAll")} ({filteredParts.length})
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Combined Reference Note */}
-        <div className="mt-12 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-foreground mb-2">
-                {language === "en" 
-                  ? "Can't find your part? Try our combined search"
-                  : "Hauwezi kupata kipuri chako? Jaribu utafutaji wetu wa pamoja"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {language === "en"
-                  ? "Search across OEM numbers, cross-references, and local names"
-                  : "Tafuta kwenye nambari za OEM, rejea mbadala, na majina ya kienyeji"}
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                // Navigate to advanced search/compatibility checker
-                document.querySelector("#compatibility")?.scrollIntoView({ behavior: "smooth" });
-              }}
-            >
-              {language === "en" ? "Advanced Search" : "Utafutaji wa Juu"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
   );
 };
 
-export default Products;
+export const useLanguage = (): LanguageContextType => {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};
