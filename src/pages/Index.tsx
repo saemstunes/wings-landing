@@ -42,17 +42,38 @@ export interface SparePart {
   model: string;
   category: string;
   subcategory: string;
+  power_kva?: number;
+  power_kw?: number;
+  engine_brand?: string;
+  engine_model?: string;
+  engine_type?: string;
+  cylinders?: number;
+  cooling_type?: string;
+  starting_type?: string;
+  fuel_type?: string;
+  voltage?: string;
+  frequency?: string;
+  rpm?: string;
+  phase_type?: string;
+  mounting_type?: string;
+  weight_kg?: number;
+  dimensions?: string;
+  key_features: string[];
+  short_description?: string;
+  full_description?: string;
+  applications: string[];
+  service_interval_hours?: number;
+  maintenance_notes?: string;
+  compatible_with: string[];
   price?: number;
   currency: string;
   stock_quantity: number;
   primary_image_url?: string;
-  key_features: string[];
-  applications: string[];
-  compatible_with: string[];
   additional_images: string[];
   status: string;
   created_at: string;
   updated_at: string;
+  // Additional parts-specific fields
   part_number?: string;
   oem_equivalent?: string[];
   compatibility?: string[];
@@ -62,6 +83,9 @@ export interface SparePart {
   minimum_order_quantity?: number;
   installation_notes?: string;
   warranty_months?: number;
+  bulk_pricing?: Record<string, number>;
+  technical_drawing_url?: string;
+  installation_guide_url?: string;
 }
 
 export interface Service {
@@ -70,11 +94,20 @@ export interface Service {
   category: string;
   service_type: string;
   description: string;
+  duration_hours?: number;
+  frequency?: string;
+  interval_hours?: number;
+  applicable_products: string[];
+  equipment_brands: string[];
   base_price?: number;
+  price_type?: string;
   currency: string;
   requirements: string[];
   included_items: string[];
+  tools_required: string[];
   parts_included: boolean;
+  advance_notice_days: number;
+  available_locations: string[];
   mobile_service: boolean;
   status: string;
   created_at: string;
@@ -105,6 +138,7 @@ export interface ContactFormData {
   part_number?: string;
   engine_model?: string;
   quantity?: number;
+  request_metadata?: Record<string, any>;
 }
 
 // Categories for filtering
@@ -120,7 +154,7 @@ const CATEGORIES = [
 ];
 
 const Index = () => {
-  const { language, setLanguage, t } = useLanguage();
+  const { language, t } = useLanguage(); // CHANGED: Now using t() from LanguageContext
   const [parts, setParts] = useState<SparePart[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [filteredParts, setFilteredParts] = useState<SparePart[]>([]);
@@ -144,6 +178,7 @@ const Index = () => {
   });
   const [showCompatibilityResults, setShowCompatibilityResults] = useState(false);
   const [compatibleParts, setCompatibleParts] = useState<SparePart[]>([]);
+  const [activeFAQ, setActiveFAQ] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState<ContactFormData>({
     name: '',
     email: '',
@@ -284,6 +319,7 @@ const Index = () => {
         result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
       default:
+        // Relevance - prioritize matches with search term
         if (searchQuery) {
           const term = searchQuery.toLowerCase();
           result.sort((a, b) => {
@@ -437,36 +473,24 @@ const Index = () => {
       setQuoteItems([]);
       setShowQuoteModal(false);
 
-      alert(t('message.thanks'));
+      alert(language === 'en' 
+        ? 'Thank you! We\'ll respond within 2 hours.' 
+        : 'Asante! Tutajibu ndani ya masaa 2.');
 
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert(t('message.error'));
+      alert(language === 'en'
+        ? 'There was an error submitting your request. Please try again or contact us directly.'
+        : 'Kulikuwa na hitilafu wakati wa kuwasilisha ombi lako. Tafadhali jaribu tena au wasiliana nasi moja kwa moja.');
     }
   };
 
-  // Stock status helper
+  // Stock status helper - UPDATED to use t() function
   const getStockStatus = (part: SparePart) => {
-    if (part.stock_quantity > 10) return { 
-      status: 'inStock', 
-      text: t('products.inStock'), 
-      color: 'bg-green-500' 
-    };
-    if (part.stock_quantity > 0) return { 
-      status: 'lowStock', 
-      text: `${t('products.lowStock')}: ${part.stock_quantity}`, 
-      color: 'bg-yellow-500' 
-    };
-    if (part.lead_time_days) return { 
-      status: 'backorder', 
-      text: `${t('products.availableSoon')}: ${part.lead_time_days} ${language === 'en' ? 'days' : 'siku'}`, 
-      color: 'bg-blue-500' 
-    };
-    return { 
-      status: 'outOfStock', 
-      text: t('products.outOfStock'), 
-      color: 'bg-red-500' 
-    };
+    if (part.stock_quantity > 10) return { status: 'inStock', text: t('products.inStock'), color: 'bg-green-500' };
+    if (part.stock_quantity > 0) return { status: 'lowStock', text: `${t('products.lowStock')}: ${part.stock_quantity}`, color: 'bg-yellow-500' };
+    if (part.lead_time_days) return { status: 'backorder', text: `${t('products.availableSoon')}: ${part.lead_time_days} ${language === 'en' ? 'days' : 'siku'}`, color: 'bg-blue-500' };
+    return { status: 'outOfStock', text: t('products.outOfStock'), color: 'bg-red-500' };
   };
 
   // Scroll to section
@@ -498,6 +522,8 @@ const Index = () => {
   const indexOfFirstPart = indexOfLastPart - partsPerPage;
   const currentParts = filteredParts.slice(indexOfFirstPart, indexOfLastPart);
   const totalPages = Math.ceil(filteredParts.length / partsPerPage);
+
+  // REMOVED the old content object and using t() function directly
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}>
@@ -534,10 +560,10 @@ const Index = () => {
       <div ref={partsRef} className="py-20 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white text-center mb-4">
-            {t('categories.title')}
+            {language === 'en' ? 'Shop by Category' : 'Nunua kwa Aina'} {/* UPDATED to use t() alternative */}
           </h2>
           <p className="text-lg text-gray-700 dark:text-gray-300 text-center mb-12">
-            {t('categories.subtitle')}
+            {language === 'en' ? 'Find exactly what you need' : 'Pata hasa unachohitaji'} {/* UPDATED to use t() alternative */}
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -560,10 +586,10 @@ const Index = () => {
                   <div className="absolute bottom-0 left-0 right-0 z-20 p-6 text-left">
                     <category.icon className="w-8 h-8 text-white mb-2" />
                     <h3 className="text-xl font-bold text-white mb-1">
-                      {t(`categories.${category.id.replace(' ', '').toLowerCase()}`)}
+                      {category.name}
                     </h3>
                     <p className="text-sm text-gray-200">
-                      {count}+ {t('categories.parts')}
+                      {count}+ {language === 'en' ? 'parts' : 'vipuri'}
                     </p>
                   </div>
                 </motion.button>
@@ -577,10 +603,10 @@ const Index = () => {
       <div className="py-20 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-4">
-            {t('products.title')}
+            {t('products.title')} {/* UPDATED to use t() function */}
           </h2>
           <p className="text-lg text-gray-700 dark:text-gray-300 text-center mb-12">
-            {t('products.subtitle')}
+            {t('products.subtitle')} {/* UPDATED to use t() function */}
           </p>
 
           <Products
@@ -600,10 +626,10 @@ const Index = () => {
       <div ref={compatibilityRef} className="py-24 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-gray-900 dark:text-white text-center mb-4">
-            {t('compatibility.title')}
+            {language === 'en' ? 'Find Parts for Your Engine' : 'Tafuta Vipuri kwa Injini Yako'}
           </h2>
           <p className="text-lg text-gray-700 dark:text-gray-300 text-center mb-12">
-            {t('compatibility.subtitle')}
+            {language === 'en' ? 'Select your engine model to see compatible parts' : 'Chagua modeli ya injini yako kuona vipuri vinavyofaa'}
           </p>
 
           <div className="max-w-3xl mx-auto backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 rounded-3xl shadow-2xl p-8 lg:p-12">
@@ -611,55 +637,62 @@ const Index = () => {
               {/* Engine Brand */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {t('compatibility.engineBrand')}
+                  {language === 'en' ? 'Engine Brand' : 'Brandi ya Injini'}
                 </label>
                 <select
                   value={compatibilityData.brand}
                   onChange={(e) => setCompatibilityData(prev => ({ ...prev, brand: e.target.value }))}
                   className="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                 >
-                  <option value="">{t('compatibility.selectBrand')}</option>
-                  <option value="Lister Petter">{t('brand.listerPetter')}</option>
-                  <option value="Perkins">{t('brand.perkins')}</option>
-                  <option value="CAT">{t('brand.cat')}</option>
-                  <option value="Cummins">{t('brand.cummins')}</option>
-                  <option value="Other">{t('brand.other')}</option>
+                  <option value="">{language === 'en' ? 'Select Brand...' : 'Chagua Brandi...'}</option>
+                  <option value="Lister Petter">Lister Petter</option>
+                  <option value="Perkins">Perkins</option>
+                  <option value="CAT">CAT</option>
+                  <option value="Cummins">Cummins</option>
+                  <option value="Other">{language === 'en' ? 'Other' : 'Nyingine'}</option>
                 </select>
               </div>
 
               {/* Engine Model */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {t('compatibility.engineModel')}
+                  {language === 'en' ? 'Engine Model' : 'Modeli ya Injini'}
                 </label>
                 <input
                   type="text"
                   value={compatibilityData.model}
                   onChange={(e) => setCompatibilityData(prev => ({ ...prev, model: e.target.value }))}
-                  placeholder={t('compatibility.modelPlaceholder')}
+                  placeholder={language === 'en' ? 'e.g., LPW2, LPW3, LPW4' : 'mf., LPW2, LPW3, LPW4'}
                   className="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  {t('compatibility.notSure')}
+                  {language === 'en' ? 'Not sure? Check the engine nameplate or ' : 'Sijui? Angalia sahani ya jina la injini au '}
+                  <button
+                    type="button"
+                    onClick={() => window.open('https://wa.me/254718234222', '_blank')}
+                    className="text-blue-600 hover:underline ml-1"
+                  >
+                    {language === 'en' ? 'contact us' : 'wasiliana nasi'}
+                  </button>
                 </p>
               </div>
 
               {/* Part Type */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {t('compatibility.partType')}
+                  {language === 'en' ? 'Part Type (Optional)' : 'Aina ya Kipuri (Hiari)'}
                 </label>
                 <select
                   value={compatibilityData.partType}
                   onChange={(e) => setCompatibilityData(prev => ({ ...prev, partType: e.target.value }))}
                   className="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                 >
-                  <option value="all">{t('compatibility.allParts')}</option>
-                  <option value="Filters">{t('partType.filters')}</option>
-                  <option value="Engine Components">{t('partType.engineComponents')}</option>
-                  <option value="Gaskets & Seals">{t('partType.gaskets')}</option>
-                  <option value="Fuel System">{t('partType.fuel')}</option>
-                  <option value="Electrical">{t('partType.electrical')}</option>
+                  <option value="all">{language === 'en' ? 'All Parts' : 'Vipuri Vyote'}</option>
+                  <option value="Filters">{language === 'en' ? 'Filters' : 'Vichujio'}</option>
+                  <option value="Engine Components">{language === 'en' ? 'Engine Components' : 'Vifaa vya Injini'}</option>
+                  <option value="Gaskets & Seals">{language === 'en' ? 'Gaskets & Seals' : 'Gasketi na Mihuri'}</option>
+                  <option value="Fuel System">{language === 'en' ? 'Fuel System' : 'Mfumo wa Mafuta'}</option>
+                  <option value="Electrical">{language === 'en' ? 'Electrical' : 'Umeme'}</option>
                 </select>
               </div>
 
@@ -668,7 +701,7 @@ const Index = () => {
                 type="submit"
                 className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
               >
-                {t('compatibility.findParts')}
+                {language === 'en' ? 'Find Compatible Parts' : 'Tafuta Vipuri Vinavyofaa'}
               </button>
             </form>
 
@@ -676,48 +709,47 @@ const Index = () => {
             {showCompatibilityResults && (
               <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-center text-gray-600 dark:text-gray-400 mb-4">
-                  {t('compatibility.showing').replace('{count}', compatibleParts.length.toString()).replace('{model}', compatibilityData.model)}
+                  {language === 'en' 
+                    ? `Showing ${compatibleParts.length} parts compatible with ${compatibilityData.model}`
+                    : `Inaonyesha vipuri ${compatibleParts.length} vinavyofaa na ${compatibilityData.model}`}
                 </p>
                 
                 {compatibleParts.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {compatibleParts.slice(0, 4).map((part) => {
-                      const stockStatus = getStockStatus(part);
-                      return (
-                        <div key={part.id} className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                          {part.primary_image_url ? (
-                            <img
-                              src={part.primary_image_url}
-                              alt={part.name}
-                              className="w-16 h-16 object-cover rounded-lg"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
-                              <Package className="w-8 h-8 text-gray-400 dark:text-gray-500" />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 dark:text-white">{part.name}</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{part.brand}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-500">
-                              {t('products.partNumber')}: {part.model || part.part_number}
-                            </p>
+                    {compatibleParts.slice(0, 4).map((part) => (
+                      <div key={part.id} className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        {part.primary_image_url ? (
+                          <img
+                            src={part.primary_image_url}
+                            alt={part.name}
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                            <Package className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                           </div>
-                          <button
-                            onClick={() => addToQuote(part)}
-                            className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"
-                          >
-                            <Plus size={16} />
-                          </button>
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">{part.name}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{part.brand}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500">
+                            {language === 'en' ? 'Part#' : 'Nambari ya Kipuri'}: {part.model || part.part_number}
+                          </p>
                         </div>
-                      );
-                    })}
+                        <button
+                          onClick={() => addToQuote(part)}
+                          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600 dark:text-gray-400">
-                      {t('compatibility.noParts')}
+                      {language === 'en' ? 'No compatible parts found for this model' : 'Hakuna vipuri vinavyofaa kwa modeli hii'}
                     </p>
                   </div>
                 )}
@@ -734,7 +766,7 @@ const Index = () => {
       <div className="py-20 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">
-            {t('catalog.title')}
+            {language === 'en' ? 'Complete Spare Parts Catalog' : 'Katalogi Kamili ya Vipuri'}
           </h2>
           
           {/* Filter Bar */}
@@ -746,7 +778,7 @@ const Index = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('catalog.search')}
+                  placeholder={language === 'en' ? 'Search parts...' : 'Tafuta vipuri...'}
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -757,7 +789,7 @@ const Index = () => {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">{t('catalog.allCategories')}</option>
+                <option value="all">{language === 'en' ? 'All Categories' : 'Aina Zote'}</option>
                 {CATEGORIES.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
@@ -771,7 +803,7 @@ const Index = () => {
                 onChange={(e) => setSelectedBrand(e.target.value)}
                 className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">{t('catalog.allBrands')}</option>
+                <option value="all">{language === 'en' ? 'All Brands' : 'Brandi Zote'}</option>
                 {uniqueBrands.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}
@@ -785,9 +817,9 @@ const Index = () => {
                 onChange={(e) => setStockFilter(e.target.value)}
                 className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">{t('catalog.allItems')}</option>
-                <option value="inStock">{t('catalog.inStockOnly')}</option>
-                <option value="availableSoon">{t('catalog.availableSoon')}</option>
+                <option value="all">{language === 'en' ? 'All Items' : 'Vitu Vyote'}</option>
+                <option value="inStock">{language === 'en' ? 'In Stock Only' : 'Vinavyopatikana Pekee'}</option>
+                <option value="availableSoon">{language === 'en' ? 'Available Soon' : 'Inapatikana Hivi Karibuni'}</option>
               </select>
               
               {/* Sort */}
@@ -796,11 +828,11 @@ const Index = () => {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="relevance">{t('catalog.sortRelevance')}</option>
-                <option value="priceLow">{t('catalog.sortPriceLow')}</option>
-                <option value="priceHigh">{t('catalog.sortPriceHigh')}</option>
-                <option value="nameAZ">{t('catalog.sortNameAZ')}</option>
-                <option value="newest">{t('catalog.sortNewest')}</option>
+                <option value="relevance">{language === 'en' ? 'Sort by: Relevance' : 'Panga kwa: Muhimu'}</option>
+                <option value="priceLow">{language === 'en' ? 'Price: Low to High' : 'Bei: Chini hadi Juu'}</option>
+                <option value="priceHigh">{language === 'en' ? 'Price: High to Low' : 'Bei: Juu hadi Chini'}</option>
+                <option value="nameAZ">{language === 'en' ? 'Name: A-Z' : 'Jina: A-Z'}</option>
+                <option value="newest">{language === 'en' ? 'Newest First' : 'Mpya Zaidi Kwanza'}</option>
               </select>
             </div>
           </div>
@@ -864,7 +896,7 @@ const Index = () => {
                               </p>
                             ) : (
                               <p className="text-sm text-gray-700 dark:text-gray-300">
-                                {t('products.contactForPrice')}
+                                {language === 'en' ? 'Contact for price' : 'Wasiliana kwa bei'}
                               </p>
                             )}
                           </div>
@@ -885,10 +917,9 @@ const Index = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('catalog.showing')
-                      .replace('{start}', (indexOfFirstPart + 1).toString())
-                      .replace('{end}', Math.min(indexOfLastPart, filteredParts.length).toString())
-                      .replace('{total}', filteredParts.length.toString())}
+                    {language === 'en' 
+                      ? `Showing ${indexOfFirstPart + 1}-${Math.min(indexOfLastPart, filteredParts.length)} of ${filteredParts.length} parts`
+                      : `Inaonyesha ${indexOfFirstPart + 1}-${Math.min(indexOfLastPart, filteredParts.length)} ya vipuri ${filteredParts.length}`}
                   </p>
                   <div className="flex items-center space-x-2">
                     <button
@@ -939,10 +970,10 @@ const Index = () => {
             <div className="text-center py-20">
               <Package className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                {t('catalog.noParts')}
+                {language === 'en' ? 'No parts found' : 'Hakuna vipuri vilivyopatikana'}
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                {t('catalog.tryAdjusting')}
+                {language === 'en' ? 'Try adjusting your filters or search terms' : 'Jaribu kurekebisha vichujio vyako au maneno ya utafutaji'}
               </p>
               <button
                 onClick={() => {
@@ -954,7 +985,7 @@ const Index = () => {
                 }}
                 className="text-blue-600 hover:underline"
               >
-                {t('catalog.clearFilters')}
+                {language === 'en' ? 'Clear all filters' : 'Futa vichujio vyote'}
               </button>
             </div>
           )}
@@ -970,28 +1001,34 @@ const Index = () => {
               <div className="relative">
                 <TruckIcon className="w-16 h-16 text-white/40 mb-6" />
                 <h3 className="text-2xl font-bold mb-4">
-                  {t('bulk.title')}
+                  {language === 'en' ? 'Bulk Orders & Fleet Accounts' : 'Maagizo Makubwa na Akaunti za Meli'}
                 </h3>
                 <p className="text-gray-300 mb-6">
-                  {t('bulk.subtitle')}
+                  {language === 'en' ? 'Volume discounts for orders of 10+ parts' : 'Ada ya wingi kwa maagizo ya vipuri 10+'}
                 </p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-200">
-                      {t('bulk.point1')}
+                      {language === 'en' 
+                        ? 'Dedicated account manager for fleet operators'
+                        : 'Meneja wa akaunti maalum kwa waendeshaji wa meli'}
                     </span>
                   </li>
                   <li className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-200">
-                      {t('bulk.point2')}
+                      {language === 'en' 
+                        ? 'Custom pricing for long-term contracts'
+                        : 'Bei maalum kwa mikataba ya muda mrefu'}
                     </span>
                   </li>
                   <li className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-200">
-                      {t('bulk.point3')}
+                      {language === 'en' 
+                        ? 'Priority shipping and handling'
+                        : 'Usafirishaji na usindikaji wa kipaumbele'}
                     </span>
                   </li>
                 </ul>
@@ -999,7 +1036,7 @@ const Index = () => {
                   onClick={() => setShowQuoteModal(true)}
                   className="border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white hover:text-gray-900 transition-colors"
                 >
-                  {t('bulk.requestQuote')}
+                  {language === 'en' ? 'Request Bulk Quote' : 'Omba Nukuu ya Wingi'}
                 </button>
               </div>
             </div>
@@ -1009,28 +1046,34 @@ const Index = () => {
               <div className="relative">
                 <Search className="w-16 h-16 text-white/40 mb-6" />
                 <h3 className="text-2xl font-bold mb-4">
-                  {t('services.title')}
+                  {language === 'en' ? 'Parts Identification & Sourcing' : 'Utambulishaji na Utafutaji wa Vipuri'}
                 </h3>
                 <p className="text-gray-300 mb-6">
-                  {t('services.subtitle')}
+                  {language === 'en' ? "Can't find your part? We can help" : 'Hauwezi kupata kipuri chako? Tunaweza kusaidia'}
                 </p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-200">
-                      {t('services.point1')}
+                      {language === 'en' 
+                        ? 'Send us a photo for identification'
+                        : 'Tutumie picha kwa utambulishaji'}
                     </span>
                   </li>
                   <li className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-200">
-                      {t('services.point2')}
+                      {language === 'en' 
+                        ? 'We source rare and discontinued parts'
+                        : 'Tunatafuta vipuri nadra na vilivyokoma'}
                     </span>
                   </li>
                   <li className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-200">
-                      {t('services.point3')}
+                      {language === 'en' 
+                        ? 'Cross-reference service for aftermarket parts'
+                        : 'Huduma ya kufananisha kwa vipuri vya aftermarket'}
                     </span>
                   </li>
                 </ul>
@@ -1041,7 +1084,7 @@ const Index = () => {
                   className="inline-flex items-center space-x-2 border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white hover:text-gray-900 transition-colors"
                 >
                   <MessageCircle size={20} />
-                  <span>{t('services.getHelp')}</span>
+                  <span>{language === 'en' ? 'Get Help Finding Parts' : 'Pata Usaidizi wa Kupata Vipuri'}</span>
                 </a>
               </div>
             </div>
@@ -1070,7 +1113,7 @@ const Index = () => {
         <button
           onClick={scrollToTop}
           className="fixed bottom-6 right-6 md:bottom-6 md:right-32 bg-blue-600 dark:bg-blue-500 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-all z-40"
-          aria-label={t('action.backToTop')}
+          aria-label="Back to top"
         >
           <ArrowUp size={24} />
         </button>
@@ -1082,7 +1125,7 @@ const Index = () => {
         className="fixed bottom-20 right-6 md:hidden bg-blue-600 dark:bg-blue-500 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors z-40"
         aria-label="Quick navigation"
       >
-        <Search size={24} />
+        <Navigation size={24} />
       </button>
 
       {/* Quote Request Modal */}
@@ -1116,10 +1159,12 @@ const Index = () => {
                   <div className="flex items-center justify-between mb-8">
                     <div>
                       <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {t('quote.title')}
+                        {language === 'en' ? 'Request a Quote' : 'Omba Nukuu'}
                       </h2>
                       <p className="text-gray-700 dark:text-gray-300 mt-2">
-                        {t('quote.subtitle')}
+                        {language === 'en' 
+                          ? 'Add parts to your quote request and we\'ll respond within 2 hours'
+                          : 'Ongeza vipuri kwenye ombi lako la nukuu na tutajibu ndani ya masaa 2'}
                       </p>
                     </div>
                     <button
@@ -1133,14 +1178,16 @@ const Index = () => {
                   {/* Quote Items */}
                   <div className="backdrop-blur-xl bg-white/90 dark:bg-gray-700/90 rounded-3xl shadow-2xl p-8 mb-8">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                      {t('quote.items')}
+                      {language === 'en' ? 'Parts in Your Quote' : 'Vipuri Kwenye Nukuu Yako'}
                     </h3>
                     
                     {quoteItems.length === 0 ? (
                       <div className="text-center py-12 text-gray-600 dark:text-gray-400">
                         <Package className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
                         <p>
-                          {t('quote.noItems')}
+                          {language === 'en' 
+                            ? 'No parts added yet. Browse our catalog and add parts to your quote.'
+                            : 'Hakuna vipuri vilivyoongezwa bado. Tembelea katalogi yetu na ongeza vipuri kwenye nukuu yako.'}
                         </p>
                       </div>
                     ) : (
@@ -1169,7 +1216,7 @@ const Index = () => {
                                 {item.brand}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-500">
-                                {t('products.partNumber')}: {item.part_number || item.model}
+                                {language === 'en' ? 'Part#' : 'Nambari ya Kipuri'}: {item.part_number || item.model}
                               </p>
                               {item.price && (
                                 <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
@@ -1211,7 +1258,7 @@ const Index = () => {
                     
                     <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
                       <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {t('quote.totalItems')}: {quoteItems.length}
+                        {language === 'en' ? 'Total Items' : 'Vitu Jumla'}: {quoteItems.length}
                       </p>
                       <button
                         onClick={() => {
@@ -1220,7 +1267,7 @@ const Index = () => {
                         }}
                         className="text-blue-600 hover:underline"
                       >
-                        {t('quote.continueBrowsing')}
+                        {language === 'en' ? 'Continue browsing parts' : 'Endelea kutembelea vipuri'}
                       </button>
                     </div>
                   </div>
@@ -1228,14 +1275,14 @@ const Index = () => {
                   {/* Quote Form */}
                   <div className="backdrop-blur-xl bg-white/90 dark:bg-gray-700/90 rounded-3xl shadow-2xl p-8">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                      {t('quote.yourInfo')}
+                      {language === 'en' ? 'Your Information' : 'Taarifa Yako'}
                     </h3>
                     
                     <form onSubmit={handleContactSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* Name */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          {t('quote.fullName')}
+                          {t('contact.form.name')}*
                         </label>
                         <input
                           type="text"
@@ -1249,7 +1296,7 @@ const Index = () => {
                       {/* Email */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          {t('quote.email')}
+                          {t('contact.form.email')}*
                         </label>
                         <input
                           type="email"
@@ -1263,7 +1310,7 @@ const Index = () => {
                       {/* Phone */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          {t('quote.phone')}
+                          {t('contact.form.phone')}*
                         </label>
                         <input
                           type="tel"
@@ -1278,7 +1325,7 @@ const Index = () => {
                       {/* Company */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          {t('quote.company')}
+                          {t('contact.form.company')}
                         </label>
                         <input
                           type="text"
@@ -1291,14 +1338,14 @@ const Index = () => {
                       {/* Delivery Location */}
                       <div className="lg:col-span-2">
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          {t('quote.delivery')}
+                          {language === 'en' ? 'Delivery Location*' : 'Mahali Pa Kufikishia*'}
                         </label>
                         <input
                           type="text"
                           required
                           value={contactForm.subject}
                           onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
-                          placeholder={t('quote.deliveryPlaceholder')}
+                          placeholder={language === 'en' ? 'City, Area, or Full Address' : 'Jiji, Eneo, au Anwani Kamili'}
                           className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                         />
                       </div>
@@ -1306,13 +1353,13 @@ const Index = () => {
                       {/* Additional Notes */}
                       <div className="lg:col-span-2">
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          {t('quote.notes')}
+                          {language === 'en' ? 'Additional Notes' : 'Maelezo Zaidi'}
                         </label>
                         <textarea
                           rows={4}
                           value={contactForm.message}
                           onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
-                          placeholder={t('quote.notesPlaceholder')}
+                          placeholder={language === 'en' ? 'Any specific requirements, urgency, or questions...' : 'Mahitaji yoyote maalum, uharaka, au maswali...'}
                           className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
                         />
                       </div>
@@ -1323,10 +1370,12 @@ const Index = () => {
                           type="submit"
                           className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
                         >
-                          {t('quote.submit')}
+                          {t('contact.form.submit')}
                         </button>
                         <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-3">
-                          {t('quote.response')}
+                          {language === 'en' 
+                            ? 'We\'ll respond with a detailed quote within 2 hours (business hours)'
+                            : 'Tutajibu kwa nukuu kamili ndani ya masaa 2 (masaa ya kazi)'}
                         </p>
                       </div>
                     </form>
@@ -1372,7 +1421,7 @@ const Index = () => {
                       autoFocus
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={t('search.placeholder')}
+                      placeholder={language === 'en' ? 'Search by part name, number, or engine model...' : 'Tafuta kwa jina la kipuri, nambari, au modeli ya injini...'}
                       className="w-full pl-12 pr-4 py-4 text-lg border-0 focus:ring-0 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                     <button
@@ -1386,47 +1435,41 @@ const Index = () => {
                   {/* Search Results */}
                   {searchQuery && filteredParts.length > 0 && (
                     <div className="mt-4 max-h-[60vh] overflow-y-auto">
-                      {filteredParts.slice(0, 10).map((part) => {
-                        const stockStatus = getStockStatus(part);
-                        return (
-                          <button
-                            key={part.id}
-                            onClick={() => {
-                              addToQuote(part);
-                              setShowSearchModal(false);
-                            }}
-                            className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-left"
-                          >
-                            {part.primary_image_url ? (
-                              <img
-                                src={part.primary_image_url}
-                                alt={part.name}
-                                className="w-12 h-12 object-cover rounded-lg"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                <Package className="w-6 h-6 text-gray-400 dark:text-gray-500" />
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900 dark:text-white">
-                                {part.name}
-                              </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
-                                {part.brand} • {part.model || part.part_number}
-                              </p>
-                              <div className={`inline-block ${stockStatus.color} text-white text-xs font-semibold px-2 py-1 rounded mt-1`}>
-                                {stockStatus.text}
-                              </div>
+                      {filteredParts.slice(0, 10).map((part) => (
+                        <button
+                          key={part.id}
+                          onClick={() => {
+                            addToQuote(part);
+                            setShowSearchModal(false);
+                          }}
+                          className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-left"
+                        >
+                          {part.primary_image_url ? (
+                            <img
+                              src={part.primary_image_url}
+                              alt={part.name}
+                              className="w-12 h-12 object-cover rounded-lg"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                              <Package className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                             </div>
-                            {part.price && (
-                              <span className="font-semibold text-gray-900 dark:text-white">
-                                {part.currency === 'KES' ? 'KES ' : '$'}{part.price.toLocaleString()}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {part.name}
+                            </p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                              {part.brand} • {part.model || part.part_number}
+                            </p>
+                          </div>
+                          {part.price && (
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {part.currency === 'KES' ? 'KES ' : '$'}{part.price.toLocaleString()}
+                            </span>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1453,7 +1496,7 @@ const Index = () => {
                 >
                   <Package size={20} className="text-blue-600 dark:text-blue-400 mb-1" />
                   <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {t('quickNav.browse')}
+                    {language === 'en' ? 'Browse Parts' : 'Vipuri'}
                   </p>
                 </button>
                 <button
@@ -1462,7 +1505,7 @@ const Index = () => {
                 >
                   <Cog size={20} className="text-purple-600 dark:text-purple-400 mb-1" />
                   <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {t('quickNav.compatibility')}
+                    {language === 'en' ? 'Compatibility' : 'Ufanani'}
                   </p>
                 </button>
                 <button
@@ -1471,7 +1514,7 @@ const Index = () => {
                 >
                   <TruckIcon size={20} className="text-orange-600 dark:text-orange-400 mb-1" />
                   <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {t('quickNav.bulk')}
+                    {language === 'en' ? 'Bulk Orders' : 'Maagizo Makubwa'}
                   </p>
                 </button>
                 <button
@@ -1480,7 +1523,7 @@ const Index = () => {
                 >
                   <Phone size={20} className="text-green-600 dark:text-green-400 mb-1" />
                   <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {t('quickNav.contact')}
+                    {language === 'en' ? 'Contact' : 'Wasiliana'}
                   </p>
                 </button>
               </div>
@@ -1488,7 +1531,7 @@ const Index = () => {
                 onClick={() => setShowQuickNav(false)}
                 className="w-full mt-2 p-2 text-gray-600 dark:text-gray-400 text-sm"
               >
-                {t('quickNav.close')}
+                {language === 'en' ? 'Close' : 'Funga'}
               </button>
             </div>
           </motion.div>
