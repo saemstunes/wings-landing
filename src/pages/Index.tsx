@@ -10,7 +10,7 @@ import {
   AlertCircle, FileText, Cog, Headphones, Award, 
   Users, HelpCircle, ExternalLink, ChevronRight, 
   ChevronLeft, Plus, Trash2, Wind, Droplet, Link, 
-  Moon, Sun, ArrowUp, Navigation, Check, Truck as TruckIcon,
+  Moon, Sun, ArrowUp, Check, Truck as TruckIcon,
   MessageSquare, Home, ShoppingBag, Bell, AlertTriangle,
   Award as AwardIcon, Users as UsersIcon, ChevronUp,
   Shield as ShieldIcon, Clock as ClockIcon
