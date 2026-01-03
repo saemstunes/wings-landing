@@ -192,3 +192,123 @@ const WhyChooseUs = ({ language = 'en' }: { language?: 'en' | 'sw' }) => {
                     wings: language === 'en' ? "✓ Guaranteed" : "✓ Inahakikishiwa",
                     others: language === 'en' ? "Sometimes" : "Wakati mwingine"
                   },
+                  {
+                    feature: language === 'en' ? "24/7 Emergency Support" : "Usaidizi wa Dharura 24/7",
+                    wings: language === 'en' ? "✓ Always Available" : "✓ Daima Inapatikana",
+                    others: language === 'en' ? "Business Hours Only" : "Saa za Biashara Pekee"
+                  },
+                  {
+                    feature: language === 'en' ? "On-Site Repair" : "Matengenezo kwenye Tovuti",
+                    wings: language === 'en' ? "✓ Mobile Service Teams" : "✓ Timu za Huduma za Rununu",
+                    others: language === 'en' ? "Bring to Workshop" : "Lete Kwenye Warsha"
+                  },
+                  {
+                    feature: language === 'en' ? "Warranty on Parts" : "Dhamana ya Vipuri",
+                    wings: language === 'en' ? "✓ 12 Months" : "✓ Miezi 12",
+                    others: language === 'en' ? "3-6 Months" : "Miezi 3-6"
+                  },
+                  {
+                    feature: language === 'en' ? "Certified Technicians" : "Wateknisia Walioidhinishwa",
+                    wings: language === 'en' ? "✓ Factory Trained" : "✓ Wamefunzwa Kwenye Kiwanda",
+                    others: language === 'en' ? "General Mechanics" : "Makanika wa Jumla"
+                  },
+                  {
+                    feature: language === 'en' ? "Response Time Guarantee" : "Dhamana ya Muda wa Kujibu",
+                    wings: language === 'en' ? "✓ 2 Hours Maximum" : "✓ Masaa 2 Upeo",
+                    others: language === 'en' ? "24+ Hours" : "Masaa 24+"
+                  },
+                  {
+                    feature: language === 'en' ? "Preventative Maintenance" : "Matengenezo ya Kuzuia",
+                    wings: language === 'en' ? "✓ Scheduled Plans" : "✓ Mipango Iliyopangwa",
+                    others: language === 'en' ? "Breakdown Only" : "Kuvunjika Pekee"
+                  },
+                  {
+                    feature: language === 'en' ? "Local Stock Availability" : "Hisa ya Ndani Inapatikana",
+                    wings: language === 'en' ? "✓ Thika Warehouse" : "✓ Ghala la Thika",
+                    others: language === 'en' ? "Import on Demand" : "Ingiza Kwa Mahitaji"
+                  }
+                ].map((row, index) => (
+                  <tr key={index} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td className="py-4 px-4 text-gray-800 dark:text-gray-200 font-medium">
+                      {row.feature}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center justify-center px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-medium">
+                        {row.wings}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center justify-center px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-sm font-medium">
+                        {row.others}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
+              {language === 'en' 
+                ? "Experience the Wings Engineering difference for your next project"
+                : "Jione tofauti ya Wings Engineering kwa mradi wako unaofuata"}
+            </p>
+            <button
+              onClick={() => {
+                const element = document.getElementById('contact');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              <CheckCircle className="h-5 w-5" />
+              {language === 'en' ? "Get Started Today" : "Anza Leo"}
+            </button>
+          </div>
+        </div>
+
+        {/* Final CTA */}
+        <div className="mt-12 text-center">
+          <div className="inline-flex flex-col sm:flex-row items-center justify-center gap-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+            <div className="text-left">
+              <h3 className="text-2xl font-bold mb-2">
+                {language === 'en' ? "Ready to Choose Excellence?" : "Tayari Kuchagua Ubora?"}
+              </h3>
+              <p className="text-blue-100">
+                {language === 'en' 
+                  ? "Contact us now for a consultation and discover why we're East Africa's preferred engineering partner"
+                  : "Wasiliana nasi sasa kwa ushauri na ugundue kwa nini tuko mshirika wa uhandisi wa kuchaguliwa Afrika Mashariki"}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href="tel:+254718234222"
+                className="inline-flex items-center justify-center gap-2 bg-white text-blue-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-semibold transition-colors"
+              >
+                <span>+254 718 234 222</span>
+              </a>
+              <button
+                onClick={() => {
+                  const message = language === 'en' 
+                    ? "Hello Wings Engineering, I'd like to learn more about your services"
+                    : "Habari Wings Engineering, Ningependa kujifunza zaidi kuhusu huduma zako";
+                  window.open(
+                    `https://wa.me/254718234222?text=${encodeURIComponent(message)}`,
+                    "_blank"
+                  );
+                }}
+                className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+              >
+                <span>{language === 'en' ? "WhatsApp Chat" : "Soga kwa WhatsApp"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default WhyChooseUs;
